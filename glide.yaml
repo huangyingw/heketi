@@ -28,3 +28,9 @@ import:
   version: kubernetes-1.15.3
 - package: github.com/go-ozzo/ozzo-validation
   version: v3.3
+- package: github.com/heketi/heketi/apps/glusterfs
+- package: github.com/heketi/heketi/middleware
+- package: github.com/heketi/heketi/pkg/metrics
+- package: github.com/heketi/heketi/server/admin
+- package: github.com/heketi/heketi/server/config
+- package: github.com/heketi/heketi/server/profiling
