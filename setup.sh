@@ -25,7 +25,7 @@ for i in gluster00 gluster01 gluster02; do
   ssh-copy-id -i /etc/heketi/heketi_key.pub root@$i
 done
 # /usr/bin/ssh -i /etc/heketi/heketi_key root@gluster01
-cp -fv heketi.service /etc/systemd/system/heketi.service
+cp -fv ./extras/systemd/heketi.service /etc/systemd/system/heketi.service
 systemctl daemon-reload
 systemctl enable --now heketi
 systemctl status heketi
