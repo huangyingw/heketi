@@ -1,6 +1,8 @@
 {
-    "clusters": [{
-        "nodes": [{
+    "clusters": [
+        {
+            "nodes": [
+                {
             "node": {
                 "hostnames": {
                     "manage": [
@@ -13,9 +15,12 @@
                 "zone": 1
             },
             "devices": [
-                "/dev/vdc", "/dev/vdd", "/dev/vdb"
+                        "/dev/vdb",
+                        "/dev/vdc",
+                        "/dev/vdd"
             ]
-        }, {
+                },
+                {
             "node": {
                 "hostnames": {
                     "manage": [
@@ -25,12 +30,15 @@
                         "192.168.31.10"
                     ]
                 },
-                "zone": 1
+                        "zone": 2
             },
             "devices": [
-                "/dev/vdc", "/dev/vdd", "/dev/vdb"
+                        "/dev/vdb",
+                        "/dev/vdc",
+                        "/dev/vdd"
             ]
-        }, {
+                },
+                {
             "node": {
                 "hostnames": {
                     "manage": [
@@ -40,11 +48,15 @@
                         "192.168.31.31"
                     ]
                 },
-                "zone": 1
+                        "zone": 3
             },
             "devices": [
-                "/dev/vdc", "/dev/vdd", "/dev/vdb"
+                        "/dev/vdb",
+                        "/dev/vdc",
+                        "/dev/vdd"
+                    ]
+                }
             ]
-        }]
-    }]
+        }
+            ]
 }
