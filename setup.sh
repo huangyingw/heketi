@@ -5,11 +5,6 @@ cd "$SCRIPTPATH"
 
 # https://computingforgeeks.com/setup-glusterfs-storage-with-heketi-on-centos-server/
 
-cp -fv ./heketi /usr/local/bin 
-cp -fv ./client/cli/go/heketi-cli /usr/local/bin 
-heketi --version
-heketi-cli --version
-
 groupadd --system heketi
 useradd -s /sbin/nologin --system -g heketi heketi
 mkdir -p /var/lib/heketi /etc/heketi /var/log/heketi
