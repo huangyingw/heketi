@@ -32,7 +32,7 @@ systemctl enable --now heketi
 systemctl status heketi
 
 cp -fv ./extras/systemd/heketi.env /etc/heketi/heketi.env
-cp -fv topology.json /etc/heketi/topology.json
+cp -fv ./topology.json /etc/heketi/topology.json
 heketi-cli topology load --json=/etc/heketi/topology.json
 
 heketi-cli node list
