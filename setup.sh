@@ -26,12 +26,12 @@ for i in gluster00 gluster01 gluster02; do
 done
 # /usr/bin/ssh -i /etc/heketi/heketi_key root@gluster01
 cp -fv ./extras/systemd/heketi.service /etc/systemd/system/heketi.service
+chown -R heketi:heketi /var/lib/heketi /var/log/heketi /etc/heketi
 systemctl daemon-reload
 systemctl enable --now heketi
 systemctl status heketi
 
-wget -O -nc /etc/heketi/heketi.env https://raw.githubusercontent.com/heketi/heketi/master/extras/systemd/heketi.env
-chown -R heketi:heketi /var/lib/heketi /var/log/heketi /etc/heketi
+cp -fv ./extras/systemd/heketi.env /etc/heketi/heketi.env
 cp -fv topology.json /etc/heketi/topology.json
 heketi-cli topology load --json=/etc/heketi/topology.json
 
