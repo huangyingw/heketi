@@ -21,7 +21,8 @@ import (
 )
 
 type testApp struct {
-	topologyInfo *api.TopologyInfoResponse
+	topologyInfo   *api.TopologyInfoResponse
+	operationsInfo *api.OperationsInfo
 }
 
 func (t *testApp) SetRoutes(router *mux.Router) error {
@@ -37,6 +38,10 @@ func (t *testApp) Close() {}
 func (t *testApp) Auth(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 }
 
+func (t *testApp) AppOperationsInfo() (*api.OperationsInfo, error) {
+	return t.operationsInfo, nil
+}
+
 func TestMetricsEndpoint(t *testing.T) {
 	ta := &testApp{
 		topologyInfo: &api.TopologyInfoResponse{
@@ -45,7 +50,9 @@ func TestMetricsEndpoint(t *testing.T) {
 					Id: "c1",
 					Nodes: []api.NodeInfoResponse{
 						{
-							NodeInfo: api.NodeInfo{NodeAddRequest: api.NodeAddRequest{Hostnames: api.HostAddresses{Manage: []string{"n1"}}}},
+							NodeInfo: api.NodeInfo{NodeAddRequest: api.NodeAddRequest{
+								Hostnames: api.HostAddresses{Manage: []string{"n1"}, Storage: []string{"n1"}},
+							}},
 							DevicesInfo: []api.DeviceInfoResponse{
 								{
 									DeviceInfo: api.DeviceInfo{
@@ -55,6 +62,8 @@ func TestMetricsEndpoint(t *testing.T) {
 											Free:  1,
 											Used:  1,
 										},
+										Id:     "id1",
+										PvUUID: "pv1",
 									},
 									Bricks: []api.BrickInfo{
 										{
@@ -68,6 +77,13 @@ func TestMetricsEndpoint(t *testing.T) {
 					},
 				},
 			},
+		},
+		operationsInfo: &api.OperationsInfo{
+			Total:    7,
+			InFlight: 3,
+			Stale:    2,
+			Failed:   2,
+			New:      1,
 		},
 	}
 
@@ -89,8 +105,33 @@ func TestMetricsEndpoint(t *testing.T) {
 		t.Fatal("heketi_nodes_count{cluster=\"c1\"} 1 should be present in the metrics output")
 	}
 
-	match, err = regexp.Match("heketi_device_size{cluster=\"c1\",device=\"d1\",hostname=\"n1\"} 2", body)
+	match, err = regexp.Match("heketi_device_size{cluster=\"c1\",device=\"d1\",hostname=\"n1\",id=\"id1\",pv_uuid=\"pv1\",storage_hostname=\"n1\"} 2", body)
 	if !match || err != nil {
-		t.Fatal("heketi_device_size{cluster=\"c1\",device=\"d1\",hostname=\"n1\"} 2 should be present in the metrics output")
+		t.Fatal("heketi_device_size{cluster=\"c1\",device=\"d1\",hostname=\"n1\",id=\"id1\",pv_uuid=\"pv1\",storage_hostname=\"n1\"} 2 should be present in the metrics output")
+	}
+
+	match, err = regexp.Match("operations_total_count 7", body)
+	if !match || err != nil {
+		t.Fatal("operations_total_count 7 should be present in the metrics output")
+	}
+
+	match, err = regexp.Match("operations_inFlight_count 3", body)
+	if !match || err != nil {
+		t.Fatal("operations_inFlight_count 3 should be present in the metrics output")
+	}
+
+	match, err = regexp.Match("operations_stale_count 2", body)
+	if !match || err != nil {
+		t.Fatal("operations_stale_count 2 should be present in the metrics output")
+	}
+
+	match, err = regexp.Match("operations_failed_count 2", body)
+	if !match || err != nil {
+		t.Fatal("operations_failed_count 2 should be present in the metrics output")
+	}
+
+	match, err = regexp.Match("operations_new_count 1", body)
+	if !match || err != nil {
+		t.Fatal("operations_new_count 1 should be present in the metrics output")
 	}
 }

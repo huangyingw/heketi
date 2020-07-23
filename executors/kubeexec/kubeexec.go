@@ -39,6 +39,9 @@ type KubeExecutor struct {
 
 var (
 	logger = logging.NewLogger("[kubeexec]", logging.LEVEL_DEBUG)
+
+	// if not specifified in the config json
+	DefaultMaxConnThreshold uint64 = 64
 )
 
 func setWithEnvVariables(config *KubeConfig) {
@@ -54,6 +57,11 @@ func setWithEnvVariables(config *KubeConfig) {
 	env = os.Getenv("HEKETI_FSTAB")
 	if "" != env {
 		config.Fstab = env
+	}
+
+	env = os.Getenv("HEKETI_MOUNT_OPTS")
+	if "" != env {
+		config.MountOpts = env
 	}
 
 	// Snapshot Limit
@@ -105,6 +113,12 @@ func NewKubeExecutor(config *KubeConfig) (*KubeExecutor, error) {
 		k.Fstab = config.Fstab
 	}
 
+	if config.MountOpts == "" {
+		k.MountOpts = cmdexec.DefaultMountOpts
+	} else {
+		k.MountOpts = config.MountOpts
+	}
+
 	var err error
 	// if unset, get namespace
 	k.namespace = k.config.Namespace
@@ -120,6 +134,13 @@ func NewKubeExecutor(config *KubeConfig) (*KubeExecutor, error) {
 	if err != nil {
 		return nil, err
 	}
+	if config.MaxConnections == 0 {
+		k.kconn.MaxConnThreshold = DefaultMaxConnThreshold
+	} else if config.MaxConnections > 0 {
+		k.kconn.MaxConnThreshold = uint64(config.MaxConnections)
+	} else {
+		k.kconn.MaxConnThreshold = 0
+	}
 
 	godbc.Ensure(k != nil)
 	godbc.Ensure(k.Fstab != "")
@@ -128,7 +149,7 @@ func NewKubeExecutor(config *KubeConfig) (*KubeExecutor, error) {
 }
 
 func (k *KubeExecutor) ExecCommands(
-	host string, commands []string,
+	host string, commands rex.Cmds,
 	timeoutMinutes int) (rex.Results, error) {
 
 	// Throttle
@@ -166,7 +187,10 @@ func (k *KubeExecutor) ExecCommands(
 		return nil, err
 	}
 
-	return kube.ExecCommands(k.kconn, tc, commands, timeoutMinutes)
+	return kube.ExecCommands(k.kconn, tc, commands, kube.TimeoutOptions{
+		TimeoutMinutes:   timeoutMinutes,
+		UseTimeoutPrefix: !k.config.DisableTimeoutPrefix,
+	})
 }
 
 func (k *KubeExecutor) RebalanceOnExpansion() bool {

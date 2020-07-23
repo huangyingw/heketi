@@ -67,7 +67,9 @@ func (s *CmdExecutor) BrickCreate(host string,
 		fmt.Sprintf("mkdir -p %v", mountPath),
 
 		// Setup the LV
-		fmt.Sprintf("lvcreate -qq --autobackup=%v --poolmetadatasize %vK --chunksize %v --size %vK --thin %v/%v --virtualsize %vK --name %v",
+		fmt.Sprintf("%s lvcreate -qq --autobackup=%v --poolmetadatasize %vK --chunksize %v --size %vK --thin %v/%v --virtualsize %vK --name %v",
+			s.lvmCommand(),
+
 			// backup LVM metadata
 			conv.BoolToYN(s.BackupLVM),
 
@@ -96,13 +98,14 @@ func (s *CmdExecutor) BrickCreate(host string,
 		mkfsXfs,
 
 		// Fstab
-		fmt.Sprintf("awk \"BEGIN {print \\\"%v %v xfs rw,inode64,noatime,nouuid 1 2\\\" >> \\\"%v\\\"}\"",
+		fmt.Sprintf("awk \"BEGIN {print \\\"%v %v xfs %v 1 2\\\" >> \\\"%v\\\"}\"",
 			devnode,
 			mountPath,
+			s.MountOpts,
 			s.Fstab),
 
 		// Mount
-		fmt.Sprintf("mount -o rw,inode64,noatime,nouuid %v %v", devnode, mountPath),
+		fmt.Sprintf("mount -o %v %v %v", s.MountOpts, devnode, mountPath),
 
 		// Create a directory inside the formated volume for GlusterFS
 		fmt.Sprintf("mkdir %v", brickPath),
@@ -121,7 +124,7 @@ func (s *CmdExecutor) BrickCreate(host string,
 	}
 
 	// Execute commands
-	err := rex.AnyError(s.RemoteExecutor.ExecCommands(host, commands, 10))
+	err := rex.AnyError(s.RemoteExecutor.ExecCommands(host, rex.ToCmds(commands), 10))
 	if err != nil {
 		// Cleanup
 		s.BrickDestroy(host, brick)
@@ -138,19 +141,20 @@ func (s *CmdExecutor) BrickCreate(host string,
 func (s *CmdExecutor) deleteBrickLV(host, lv string) error {
 	// Remove the LV (by device name)
 	commands := []string{
-		fmt.Sprintf("lvremove --autobackup=%v -f %v",
-			conv.BoolToYN(s.BackupLVM), lv),
+		fmt.Sprintf("%s lvremove --autobackup=%v -f %v",
+			s.lvmCommand(), conv.BoolToYN(s.BackupLVM), lv),
 	}
-	err := rex.AnyError(s.RemoteExecutor.ExecCommands(host, commands, 5))
+	err := rex.AnyError(s.RemoteExecutor.ExecCommands(host, rex.ToCmds(commands), 5))
 	return err
 }
 
 func (s *CmdExecutor) countThinLVsInPool(host, tp string) (int, error) {
 	// Detect the number of bricks using the thin-pool
 	commands := []string{
-		fmt.Sprintf("lvs --noheadings --options=thin_count %v", tp),
+		fmt.Sprintf("%s lvs --noheadings --options=thin_count %v",
+			s.lvmCommand(), tp),
 	}
-	results, err := s.RemoteExecutor.ExecCommands(host, commands, 5)
+	results, err := s.RemoteExecutor.ExecCommands(host, rex.ToCmds(commands), 5)
 	if err := rex.AnyError(results, err); err != nil {
 		return 0, err
 	}
@@ -181,12 +185,12 @@ func (s *CmdExecutor) BrickDestroy(host string,
 	commands := []string{
 		fmt.Sprintf("umount %v", brick.Path),
 	}
-	umountErr = rex.AnyError(s.RemoteExecutor.ExecCommands(host, commands, 5))
+	umountErr = rex.AnyError(s.RemoteExecutor.ExecCommands(host, rex.ToCmds(commands), 5))
 	if umountErr != nil {
 		logger.Err(umountErr)
 		// check if the brick was previously unmounted
 		res, e := s.RemoteExecutor.ExecCommands(
-			host, []string{"mount"}, 5)
+			host, rex.OneCmd("mount"), 5)
 
 		if e == nil && res.Ok() && !strings.Contains(res[0].Output, brick.Path) {
 			logger.Warning("brick path [%v] not mounted, assuming deleted",
@@ -194,12 +198,7 @@ func (s *CmdExecutor) BrickDestroy(host string,
 			umountErr = nil
 		} else {
 			if s.DebugUmountFailures() {
-				// in case unmounting failed, grab the output of 'lsof /path/to/brick'
-				commands = []string{
-					fmt.Sprintf("lsof %s", brick.Path),
-				}
-				res, _ = s.RemoteExecutor.ExecCommands(host, commands, 5)
-				logger.Warning("brick path [%s] kept open by:\n%s", brick.Path, res[0].Output)
+				checkUnmountStatus(s, host, brick)
 			}
 		}
 	}
@@ -253,9 +252,10 @@ func (s *CmdExecutor) BrickDestroy(host string,
 	// If there is no brick left in the thin-pool, it can be removed
 	if thin_count == 0 {
 		commands = []string{
-			fmt.Sprintf("lvremove --autobackup=%v -f %v", conv.BoolToYN(s.BackupLVM), tp),
+			fmt.Sprintf("%s lvremove --autobackup=%v -f %v",
+				s.lvmCommand(), conv.BoolToYN(s.BackupLVM), tp),
 		}
-		err := rex.AnyError(s.RemoteExecutor.ExecCommands(host, commands, 5))
+		err := rex.AnyError(s.RemoteExecutor.ExecCommands(host, rex.ToCmds(commands), 5))
 		if errIsLvNotFound(err) {
 			logger.Warning("did not delete missing thin pool: %v", tp)
 			// if the thin pool is gone then the bricks in the db associated
@@ -272,7 +272,7 @@ func (s *CmdExecutor) BrickDestroy(host string,
 	commands = []string{
 		fmt.Sprintf("rmdir %v", brick.Path),
 	}
-	err = rex.AnyError(s.RemoteExecutor.ExecCommands(host, commands, 5))
+	err = rex.AnyError(s.RemoteExecutor.ExecCommands(host, rex.ToCmds(commands), 5))
 	if err != nil {
 		logger.Err(err)
 	}
@@ -292,7 +292,7 @@ func (s *CmdExecutor) removeBrickFromFstab(
 			paths.BrickIdToName(brick.Name),
 			s.Fstab),
 	}
-	err := rex.AnyError(s.RemoteExecutor.ExecCommands(host, commands, 5))
+	err := rex.AnyError(s.RemoteExecutor.ExecCommands(host, rex.ToCmds(commands), 5))
 	if err != nil {
 		logger.Err(err)
 	}
@@ -317,7 +317,7 @@ func (s *CmdExecutor) GetBrickMountStatus(host string) (*executors.BricksMountSt
 	}
 
 	res, err := s.RemoteExecutor.ExecCommands(
-		host, commands, 5)
+		host, rex.ToCmds(commands), 5)
 	if err := rex.AnyError(res, err); err != nil {
 		logger.Err(err)
 		return nil, fmt.Errorf("Unable to get mount status for bricks : %v", err)
@@ -349,4 +349,19 @@ func (s *CmdExecutor) GetBrickMountStatus(host string) (*executors.BricksMountSt
 	}
 
 	return &brickMounts, nil
+}
+
+func checkUnmountStatus(s *CmdExecutor,
+	host string, brick *executors.BrickRequest) {
+
+	// in case unmounting failed, grab the output of 'lsof /path/to/brick'
+	commands := []string{
+		fmt.Sprintf("lsof %s", brick.Path),
+	}
+	res, err := s.RemoteExecutor.ExecCommands(host, rex.ToCmds(commands), 5)
+	if err == nil {
+		logger.Warning("brick path [%s] kept open by:\n%s", brick.Path, res[0].Output)
+	} else {
+		logger.Warning("brick status could not be checked with lsof: %v", err)
+	}
 }

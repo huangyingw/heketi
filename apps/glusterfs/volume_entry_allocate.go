@@ -72,19 +72,16 @@ func (v *VolumeEntry) brickNameMap(db wdb.RODB) (
 	bmap := map[string]*BrickEntry{}
 
 	err := db.View(func(tx *bolt.Tx) error {
+		txdb := wdb.WrapTx(tx)
 		for _, brickid := range v.BricksIds() {
 			brickEntry, err := NewBrickEntryFromId(tx, brickid)
 			if err != nil {
 				return err
 			}
-			nodeEntry, err := NewNodeEntryFromId(tx, brickEntry.Info.NodeId)
+			bname, err := brickHostPath(txdb, brickEntry)
 			if err != nil {
 				return err
 			}
-
-			bname := fmt.Sprintf("%v:%v",
-				nodeEntry.Info.Hostnames.Storage[0],
-				brickEntry.Info.Path)
 			bmap[bname] = brickEntry
 		}
 		return nil
@@ -262,7 +259,7 @@ func (v *VolumeEntry) prepForBrickReplacement(db wdb.DB,
 	return
 }
 
-func (v *VolumeEntry) generateDeviceFilter(db wdb.RODB) (DeviceFilter, error) {
+func (v *VolumeEntry) generateDeviceFilter(db wdb.RODB, dsrc DeviceSource) (DeviceFilter, error) {
 
 	var filter DeviceFilter = nil
 	zoneChecking := v.GetZoneCheckingStrategy()
@@ -285,6 +282,15 @@ func (v *VolumeEntry) generateDeviceFilter(db wdb.RODB) (DeviceFilter, error) {
 				"treating as 'none'", ZoneChecking)
 	}
 
+	tagMatchingRule, err := v.GetTagMatchingRule()
+	if err != nil {
+		return nil, logger.LogError(
+			"Invalid tag matching rule: %v", err)
+	} else if tagMatchingRule != nil {
+		logger.Debug("Configuring a tag matching device filter")
+		filter = appendDeviceFilter(filter, tagMatchingRule.GetFilter(dsrc))
+	}
+
 	return filter, nil
 }
 
@@ -302,9 +308,10 @@ func (v *VolumeEntry) allocBrickReplacement(db wdb.DB,
 			return oldDeviceEntry.Info.Id != d.Info.Id
 		}
 
+		dsrc := NewClusterDeviceSource(tx, v.Info.Cluster)
 		var err error
 		txdb := wdb.WrapTx(tx)
-		defaultFilter, err := v.generateDeviceFilter(txdb)
+		defaultFilter, err := v.generateDeviceFilter(txdb, dsrc)
 		if err != nil {
 			return err
 		}
@@ -319,7 +326,7 @@ func (v *VolumeEntry) allocBrickReplacement(db wdb.DB,
 
 		placer := PlacerForVolume(v)
 		r, err = placer.Replace(
-			NewClusterDeviceSource(tx, v.Info.Cluster),
+			dsrc,
 			NewVolumePlacementOpts(v, oldBrickEntry.Info.Size, bs.SetSize),
 			deviceFilter, bs, index)
 		if err == ErrNoSpace {
@@ -509,7 +516,7 @@ func (v *VolumeEntry) allocBricks(
 		placer := PlacerForVolume(v)
 
 		txdb := wdb.WrapTx(tx)
-		deviceFilter, err := v.generateDeviceFilter(txdb)
+		deviceFilter, err := v.generateDeviceFilter(txdb, dsrc)
 		if err != nil {
 			return err
 		}
@@ -545,4 +552,32 @@ func (v *VolumeEntry) allocBricks(
 	}
 
 	return brick_entries, nil
+}
+
+func appendDeviceFilter(f1, f2 DeviceFilter) DeviceFilter {
+	if f1 == nil {
+		return f2
+	}
+	if f2 == nil {
+		return f1
+	}
+	return func(bs *BrickSet, d *DeviceEntry) bool {
+		return f1(bs, d) && f2(bs, d)
+	}
+}
+
+func brickHostPath(db wdb.RODB, b *BrickEntry) (string, error) {
+	var bname string
+	err := db.View(func(tx *bolt.Tx) error {
+		nodeEntry, err := NewNodeEntryFromId(tx, b.Info.NodeId)
+		if err != nil {
+			return err
+		}
+
+		bname = fmt.Sprintf("%v:%v",
+			nodeEntry.Info.Hostnames.Storage[0],
+			b.Info.Path)
+		return nil
+	})
+	return bname, err
 }

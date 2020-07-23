@@ -34,8 +34,10 @@ const (
 	OperationExpandVolume
 	OperationCreateBlockVolume
 	OperationDeleteBlockVolume
+	OperationExpandBlockVolume
 	OperationRemoveDevice
 	OperationCloneVolume
+	OperationBrickEvict
 )
 
 // PendingChangeType identifies what kind of lower-level new item or change
@@ -51,10 +53,13 @@ const (
 	OpExpandVolume
 	OpAddBlockVolume
 	OpDeleteBlockVolume
+	OpExpandBlockVolume
 	OpRemoveDevice
 	OpCloneVolume
 	OpSnapshotVolume
 	OpAddVolumeClone
+	OpChildOperation
+	OpParentOperation
 )
 
 // PendingOperationAction tracks individual changes to entries within the
@@ -109,10 +114,14 @@ func (v PendingOperationType) Name() string {
 		return "create-block-volume"
 	case OperationDeleteBlockVolume:
 		return "delete-block-volume"
+	case OperationExpandBlockVolume:
+		return "expand-block-volume"
 	case OperationRemoveDevice:
 		return "remove-device"
 	case OperationCloneVolume:
 		return "clone-volume"
+	case OperationBrickEvict:
+		return "evict-brick"
 	}
 	return "unknown"
 }
@@ -134,6 +143,8 @@ func (c PendingChangeType) Name() string {
 		return "Add block volume"
 	case OpDeleteBlockVolume:
 		return "Delete block volume"
+	case OpExpandBlockVolume:
+		return "Expand block volume"
 	case OpRemoveDevice:
 		return "Remove device"
 	case OpCloneVolume:
@@ -142,6 +153,10 @@ func (c PendingChangeType) Name() string {
 		return "Snapshot volume"
 	case OpAddVolumeClone:
 		return "Expand volume to"
+	case OpChildOperation:
+		return "Performing child operation"
+	case OpParentOperation:
+		return "Belongs to parent operation"
 	}
 	return "Unknown"
 }

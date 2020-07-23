@@ -126,10 +126,16 @@ func (v *BlockVolumeEntry) NewInfoResponse(tx *bolt.Tx) (*api.BlockVolumeInfoRes
 	info.Cluster = v.Info.Cluster
 	info.BlockVolume = v.Info.BlockVolume
 	info.Size = v.Info.Size
+	info.UsableSize = v.Info.UsableSize
 	info.Name = v.Info.Name
 	info.Hacount = v.Info.Hacount
 	info.BlockHostingVolume = v.Info.BlockHostingVolume
 
+	// Handle block volumes which where created
+	// before introducing UsableSize flag in the db
+	if info.UsableSize == 0 && info.Size > 0 {
+		info.UsableSize = info.Size
+	}
 	return info, nil
 }
 
@@ -169,7 +175,7 @@ func (v *BlockVolumeEntry) eligibleClustersAndVolumes(db wdb.RODB) (
 	}
 
 	// find clusters that support block volumes
-	cr := ClusterReq{Block: true}
+	cr := clusterReq{allowCreate: false, allowBlock: true}
 	possibleClusters, e = eligibleClusters(db, cr, possibleClusters)
 	if e != nil {
 		return
@@ -217,6 +223,13 @@ func (v *BlockVolumeEntry) eligibleClustersAndVolumes(db wdb.RODB) (
 			e = err
 			return
 		}
+	}
+
+	if len(volumes) == 0 {
+		// now filter out any clusters that can't support an additional BHV
+		possibleClusters, e = eligibleClusters(
+			db, clusterReq{allowCreate: true, allowBlock: true},
+			possibleClusters)
 	}
 	return
 }
@@ -311,6 +324,24 @@ func (v *BlockVolumeEntry) destroyFromHost(
 		return err
 	}
 	return nil
+}
+
+func (v *BlockVolumeEntry) BlockVolumeInfoFromHost(executor executors.Executor,
+	hvname string, h string) (*executors.BlockVolumeInfo, error) {
+
+	godbc.Require(hvname != "")
+	godbc.Require(h != "")
+
+	blockVolumeInfo, err := executor.BlockVolumeInfo(h, hvname, v.Info.Name)
+	if _, ok := err.(*executors.VolumeDoesNotExistErr); ok {
+		logger.Warning("Block volume %v (%v) does not exist",
+			v.Info.Id, v.Info.Name)
+		return nil, err
+	} else if err != nil {
+		logger.LogError("Unable to get block volume info: %v", err)
+		return nil, err
+	}
+	return blockVolumeInfo, nil
 }
 
 func (v *BlockVolumeEntry) removeComponents(db wdb.DB, keepSize bool) error {

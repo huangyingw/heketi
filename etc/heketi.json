@@ -19,11 +19,13 @@
   "jwt": {
     "_admin": "Admin has access to all APIs",
     "admin": {
-      "key": "My Secret"
+      "_key_comment": "Set the admin key in the next line",
+      "key": ""
     },
     "_user": "User only has access to /volumes endpoint",
     "user": {
-      "key": "My Secret"
+      "_key_comment": "Set the user key in the next line",
+      "key": ""
     }
   },
 
@@ -52,6 +54,7 @@
       "user": "sshuser",
       "port": "Optional: ssh port.  Default is 22",
       "fstab": "Optional: Specify fstab file on node.  Default is /etc/fstab",
+      "mountopts": "Optional: Specify brick mount options.  Default is rw,inode64,noatime,nouuid",
       "pv_data_alignment": "Optional: Specify PV data alignment size. Default is 256K",
       "vg_physicalextentsize": "Optional: Specify VG physical extent size. Default is 4MB",
       "lv_chunksize": "Optional: Specify LV chunksize. Default is 256K",
@@ -60,7 +63,8 @@
       "backup_lvm_metadata": false,
       "gluster_cli_timeout": "Optional: Timeout, in seconds, passed to the gluster cli invocations",
       "_debug_umount_failures": "Optional: boolean to capture more details in case brick unmounting fails",
-      "debug_umount_failures": true
+      "debug_umount_failures": true,
+      "lvm_wrapper": ""
     },
 
     "_kubeexec_comment": "Kubernetes configuration",
@@ -72,6 +76,7 @@
       "password": "password for kubernetes user",
       "namespace": "OpenShift project or Kubernetes namespace",
       "fstab": "Optional: Specify fstab file on node.  Default is /etc/fstab",
+      "mountopts": "Optional: Specify brick mount options.  Default is rw,inode64,noatime,nouuid",
       "pv_data_alignment": "Optional: Specify PV data alignment size. Default is 256K",
       "vg_physicalextentsize": "Optional: Specify VG physical extent size. Default is 4MB",
       "lv_chunksize": "Optional: Specify LV chunksize. Default is 256K",
@@ -80,7 +85,8 @@
       "backup_lvm_metadata": false,
       "gluster_cli_timeout": "Optional: Timeout, in seconds, passed to the gluster cli invocations",
       "_debug_umount_failures": "Optional: boolean to capture more details in case brick unmounting fails",
-      "debug_umount_failures": true
+      "debug_umount_failures": true,
+      "lvm_wrapper": ""
     },
 
     "_db_comment": "Database file name",

@@ -6,10 +6,10 @@ APP_NAME := heketi
 CLIENT_PKG_NAME := heketi-client
 SHA := $(shell git rev-parse --short HEAD)
 BRANCH := $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))
-VER := $(shell git describe --match='v[0-9].[0-9].[0-9]')
-TAG := $(shell git tag --points-at HEAD 'v[0-9].[0-9].[0-9]' | tail -n1)
+VER := $(shell git describe --match='v[0-9]*.[0-9].[0-9]')
+TAG := $(shell git tag --points-at HEAD 'v[0-9]*.[0-9].[0-9]' | tail -n1)
 GO:=go
-GLIDE:=glide
+GLIDE:=glide --debug
 TESTBIN:=./test.sh
 GOARCH := $(shell $(GO) env GOARCH)
 GOOS := $(shell $(GO) env GOOS)
@@ -155,11 +155,14 @@ linux_arm_dist:
 
 linux_arm64_dist:
 	GOOS=linux GOARCH=arm64 $(MAKE) dist
+	
+linux_s390x_dist:
+	GOOS=linux GOARCH=s390x $(MAKE) dist
 
 # NOTE: You can build the binaries for darwin or any other platform
 # golang supports. Just run: make dist GOOS=myos GOARCH=myarch
 
-release: deps_tarball linux_arm64_dist linux_arm_dist linux_amd64_dist
+release: deps_tarball linux_arm64_dist linux_arm_dist linux_amd64_dist linux_s390x_dist
 
 DESTDIR:=
 prefix:=/usr/local
@@ -185,6 +188,6 @@ install:
 
 
 .PHONY: server client test clean name run version release \
-	linux_arm_dist linux_amd64_dist linux_arm64_dist \
+	linux_arm_dist linux_amd64_dist linux_arm64_dist linux_s390x_dist  \
 	heketi clean_vendor deps_tarball all dist \
 	test-functional install

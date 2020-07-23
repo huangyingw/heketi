@@ -11,6 +11,7 @@ package cmdexec
 
 type CmdConfig struct {
 	Fstab                string `json:"fstab"`
+	MountOpts            string `json:"mountopts"`
 	Sudo                 bool   `json:"sudo"`
 	SnapShotLimit        int    `json:"snapshot_limit"`
 	RebalanceOnExpansion bool   `json:"rebalance_on_expansion"`
@@ -23,4 +24,5 @@ type CmdConfig struct {
 	XfsSu                int    `json:"xfs_su"`
 	DebugUmountFailures  bool   `json:"debug_umount_failures"`
 	BlockVolumePrealloc  string `json:"block_prealloc"`
+	LVMWrapper           string `json:"lvm_wrapper"`
 }

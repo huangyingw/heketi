@@ -19,7 +19,6 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/gorilla/mux"
-	"github.com/heketi/rest"
 	"github.com/lpabon/godbc"
 
 	"github.com/heketi/heketi/executors"
@@ -28,6 +27,7 @@ import (
 	"github.com/heketi/heketi/executors/mockexec"
 	"github.com/heketi/heketi/executors/sshexec"
 	"github.com/heketi/heketi/pkg/logging"
+	"github.com/heketi/heketi/server/rest"
 )
 
 const (
@@ -203,9 +203,16 @@ func (app *App) setup(conf *GlusterFSConfig) error {
 func (app *App) initDB() error {
 	// Setup database
 	var err error
-	app.db, err = OpenDB(dbfilename, false)
+	if app.conf.DBReadOnly {
+		err = fmt.Errorf("Read Only DB Required")
+	} else {
+		app.db, err = OpenDB(dbfilename, false)
+		if err != nil {
+			logger.LogError("Unable to open database read-write: %v", err)
+		}
+	}
 	if err != nil {
-		logger.LogError("Unable to open database: %v. Retrying using read only mode", err)
+		logger.Info("Trying to open db in read only mode")
 
 		// Try opening as read-only
 		app.db, err = OpenDB(dbfilename, true)
@@ -613,6 +620,18 @@ func (a *App) SetRoutes(router *mux.Router) error {
 			Method:      "GET",
 			Pattern:     "/blockvolumes",
 			HandlerFunc: a.BlockVolumeList},
+		rest.Route{
+			Name:        "BlockVolumeExpand",
+			Method:      "POST",
+			Pattern:     "/blockvolumes/{id:[A-Fa-f0-9]+}/expand",
+			HandlerFunc: a.BlockVolumeExpand},
+
+		// Brick (special)
+		rest.Route{
+			Name:        "BrickEvict",
+			Method:      "POST",
+			Pattern:     "/bricks/to-evict/{id:[A-Fa-f0-9]+}",
+			HandlerFunc: a.BrickEvict},
 
 		// Backup
 		rest.Route{
@@ -735,6 +754,9 @@ func (a *App) NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 func (a *App) ServerReset() error {
 	// currently this code just resets the operations in the db
 	// to stale
+	if a.dbReadOnly {
+		return nil
+	}
 	return a.db.Update(func(tx *bolt.Tx) error {
 		if err := MarkPendingOperationsStale(tx); err != nil {
 			logger.LogError("failed to mark operations stale: %v", err)
