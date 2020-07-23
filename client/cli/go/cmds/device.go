@@ -13,9 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
-	client "github.com/heketi/heketi/client/api/go-client"
 	"github.com/heketi/heketi/pkg/glusterfs/api"
 	"github.com/spf13/cobra"
 )
@@ -33,8 +31,6 @@ func init() {
 	deviceCommand.AddCommand(deviceEnableCommand)
 	deviceCommand.AddCommand(deviceDisableCommand)
 	deviceCommand.AddCommand(deviceResyncCommand)
-	deviceResyncCommand.Flags().Bool("cluster", false,
-		"Resync all devices under the cluster identified by object_id")
 	deviceCommand.AddCommand(deviceSetTagsCommand)
 	deviceCommand.AddCommand(deviceRmTagsCommand)
 	deviceAddCommand.Flags().StringVar(&device, "name", "",
@@ -69,7 +65,7 @@ var deviceAddCommand = &cobra.Command{
 	Short: "Add new device to node to be managed by Heketi",
 	Long:  "Add new device to node to be managed by Heketi",
 	Example: `  $ heketi-cli device add \
-      --name=/dev/sdb \
+      --name=/dev/sdb
       --node=3e098cb4407d7109806bb196d9e8f095 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Check arguments
@@ -209,6 +205,11 @@ var deviceInfoCommand = &cobra.Command{
 			return err
 		}
 
+		var entryStateRemoved api.EntryState = "removed"
+		if info.State == api.EntryStateFailed {
+			info.State = entryStateRemoved
+		}
+
 		if options.Json {
 			data, err := json.Marshal(info)
 			if err != nil {
@@ -217,19 +218,17 @@ var deviceInfoCommand = &cobra.Command{
 			fmt.Fprintf(stdout, string(data))
 		} else {
 			fmt.Fprintf(stdout, "Device Id: %v\n"+
+				"Name: %v\n"+
 				"State: %v\n"+
 				"Size (GiB): %v\n"+
 				"Used (GiB): %v\n"+
 				"Free (GiB): %v\n",
 				info.Id,
-				entryStateString(info.State),
+				info.Name,
+				info.State,
 				info.Storage.Total/(1024*1024),
 				info.Storage.Used/(1024*1024),
 				info.Storage.Free/(1024*1024))
-			fmt.Fprintf(stdout, "Create Path: %v\n", info.Name)
-			fmt.Fprintf(stdout, "Physical Volume UUID: %v\n", info.PvUUID)
-			fmt.Fprintf(stdout, "Known Paths: %v\n",
-				strings.Join(info.Paths, " "))
 			if len(info.Tags) != 0 {
 				fmt.Fprintf(stdout, "Tags:\n")
 				for k, v := range info.Tags {
@@ -322,59 +321,20 @@ var deviceDisableCommand = &cobra.Command{
 	},
 }
 
-func syncDevicesWithClusterId(heketi *client.Client, clusterId string) error {
-	// Get Topology Info from Server
-	topoinfo, err := heketi.TopologyInfo()
-	if err != nil {
-		return err
-	}
-
-	// Iterate over Clusters
-	for cluster := range topoinfo.ClusterList {
-		thisCluster := topoinfo.ClusterList[cluster]
-		// check cluster id.
-		if thisCluster.Id == clusterId {
-			// iterate over Nodes
-			for node := range thisCluster.Nodes {
-				thisNode := thisCluster.Nodes[node]
-				// resync every Device in this Node
-				for _, device := range thisNode.DevicesInfo {
-					fmt.Fprintf(stdout, "Now resyncing device %v..\n", device.Id)
-					// Call DeviceResync from Heketi
-					heketi.DeviceResync(device.Id)
-					if err == nil {
-						fmt.Fprintf(stdout, "Device %v (node %v) in cluster %v updated\n",
-							device.Id,
-							thisNode.Id,
-							thisCluster.Id)
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
 var deviceResyncCommand = &cobra.Command{
-	Use:     "resync [object_id]",
+	Use:     "resync [device_id]",
 	Short:   "Resync storage information about the device with operation system",
 	Long:    "Resync storage information about the device with operation system",
-	Example: `  $ heketi-cli device resync 886a86a868711bef83001 `,
+	Example: "  $ heketi-cli device resync 886a86a868711bef83001",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		s := cmd.Flags().Args()
-
 		//ensure proper number of args
+		s := cmd.Flags().Args()
 		if len(s) < 1 {
-			return errors.New("object/cluster id missing")
+			return errors.New("device id missing")
 		}
 
-		// set objectId
-		objectId := cmd.Flags().Arg(0)
-		// determine operation mode: CLUSTER od DEVICE
-		resyncCluster, err := cmd.Flags().GetBool("cluster")
-		if err != nil {
-			return err
-		}
+		// Set node id
+		deviceId := cmd.Flags().Arg(0)
 
 		// Create a client
 		heketi, err := newHeketiClient()
@@ -382,17 +342,10 @@ var deviceResyncCommand = &cobra.Command{
 			return err
 		}
 
-		if resyncCluster == false {
-			err = heketi.DeviceResync(objectId)
-			if err == nil {
-				fmt.Fprintf(stdout, "Device %v updated\n", objectId)
-			}
-		} else { // requested cluster resync..
-			fmt.Println("Cluster-wide resync operation requested. Using object_id as cluster_id.")
-			err := syncDevicesWithClusterId(heketi, objectId)
-			if err != nil {
-				return err
-			}
+		//set url
+		err = heketi.DeviceResync(deviceId)
+		if err == nil {
+			fmt.Fprintf(stdout, "Device %v updated\n", deviceId)
 		}
 
 		return nil

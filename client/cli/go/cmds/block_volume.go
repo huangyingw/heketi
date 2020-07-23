@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	//	"os"
 	"strings"
 
 	"github.com/heketi/heketi/pkg/glusterfs/api"
@@ -25,9 +26,6 @@ var (
 	bv_auth     bool
 	bv_clusters string
 	bv_ha       int
-
-	bvNewSize int
-	bvId      string
 )
 
 func init() {
@@ -36,7 +34,6 @@ func init() {
 	blockVolumeCommand.AddCommand(blockVolumeDeleteCommand)
 	blockVolumeCommand.AddCommand(blockVolumeInfoCommand)
 	blockVolumeCommand.AddCommand(blockVolumeListCommand)
-	blockVolumeCommand.AddCommand(blockVolumeExpandCommand)
 
 	blockVolumeCreateCommand.Flags().IntVar(&bv_size, "size", 0,
 		"\n\tSize of volume in GiB")
@@ -52,21 +49,16 @@ func init() {
 			"\n\ton any of the configured clusters which have the available space."+
 			"\n\tProviding a set of clusters will ensure Heketi allocates storage"+
 			"\n\tfor this volume only in the clusters specified.")
-	blockVolumeExpandCommand.Flags().IntVar(&bvNewSize, "new-size", 0,
-		"\n\tNet new size of block volume in GiB")
-	blockVolumeExpandCommand.Flags().StringVar(&bvId, "blockvolume", "",
-		"\n\tId of block volume to expand")
 	blockVolumeCreateCommand.SilenceUsage = true
 	blockVolumeDeleteCommand.SilenceUsage = true
 	blockVolumeInfoCommand.SilenceUsage = true
 	blockVolumeListCommand.SilenceUsage = true
-	blockVolumeExpandCommand.SilenceUsage = true
 }
 
 var blockVolumeCommand = &cobra.Command{
 	Use:   "blockvolume",
-	Short: "Heketi Block Volume Management",
-	Long:  "Heketi Block Volume Management",
+	Short: "Heketi Volume Management",
+	Long:  "Heketi Volume Management",
 }
 
 var blockVolumeCreateCommand = &cobra.Command{
@@ -245,60 +237,6 @@ var blockVolumeListCommand = &cobra.Command{
 			}
 		}
 
-		return nil
-	},
-}
-
-var blockVolumeExpandCommand = &cobra.Command{
-	Use:   "expand",
-	Short: "Expand an existing block volume",
-	Long:  "Expand an existing block volume",
-	Example: `  * Expand a block volume to net new size 100GiB
-      $ heketi-cli blockvolume expand 60d46d518074b13a04ce1022c8c7193c --new-size=100
-                     [or, you can also use]
-      $ heketi-cli blockvolume expand --blockvolume=60d46d518074b13a04ce1022c8c7193c --new-size=100
-`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-
-		if bvId == "" {
-			s := cmd.Flags().Args()
-			if len(s) < 1 {
-				return errors.New("Missing block volume id")
-			}
-
-			// Set block volume id
-			bvId = cmd.Flags().Arg(0)
-		}
-
-		if bvNewSize == 0 {
-			return errors.New("Missing block volume net new size")
-		}
-
-		// Create request
-		req := &api.BlockVolumeExpandRequest{}
-		req.Size = bvNewSize
-
-		// Create a client
-		heketi, err := newHeketiClient()
-		if err != nil {
-			return err
-		}
-
-		// Expand volume
-		blockvolume, err := heketi.BlockVolumeExpand(bvId, req)
-		if err != nil {
-			return err
-		}
-
-		if options.Json {
-			data, err := json.Marshal(blockvolume)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(stdout, string(data))
-		} else {
-			fmt.Fprintf(stdout, "%v", blockvolume)
-		}
 		return nil
 	},
 }

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	jwtmiddleware "github.com/auth0/go-jwt-middleware"
+	"github.com/auth0/go-jwt-middleware"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/context"
 	"github.com/heketi/heketi/pkg/logging"

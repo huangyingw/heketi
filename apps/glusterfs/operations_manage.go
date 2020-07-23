@@ -48,26 +48,23 @@ func newOpTracker(limit uint64) *OpTracker {
 	}
 }
 
-func (ot *OpTracker) insert(id string, c OpClass) error {
+func (ot *OpTracker) insert(id string, c OpClass) {
 	godbc.Require(id != "", "id must not be empty")
-	if ot.normalOps[id] || ot.bgOps[id] {
-		logger.Debug("id [%v] already tracked", id)
-		return ErrConflict
-	}
+	godbc.Require(!ot.normalOps[id], "id already tracked", id)
+	godbc.Require(!ot.bgOps[id], "id already tracked", id)
 	switch c {
 	case TrackClean:
 		ot.bgOps[id] = true
 	default:
 		ot.normalOps[id] = true
 	}
-	return nil
 }
 
 // Add records a new in-flight operation.
-func (ot *OpTracker) Add(id string, c OpClass) error {
+func (ot *OpTracker) Add(id string, c OpClass) {
 	ot.lock.Lock()
 	defer ot.lock.Unlock()
-	return ot.insert(id, c)
+	ot.insert(id, c)
 }
 
 // Remove removes an operation from tracking.
@@ -126,13 +123,7 @@ func (ot *OpTracker) ThrottleOrAdd(id string, c OpClass) bool {
 			"operations in-flight (%v) exceeds limit (%v)", n, ot.Limit)
 		return true
 	}
-	err := ot.insert(id, c)
-	if err == ErrConflict {
-		logger.Warning("operation [%v] already tracked, throttling", id)
-		return true
-	} else if err != nil {
-		panic(err)
-	}
+	ot.insert(id, c)
 	return false
 }
 

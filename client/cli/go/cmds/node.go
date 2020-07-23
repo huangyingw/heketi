@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/heketi/heketi/pkg/glusterfs/api"
 	"github.com/spf13/cobra"
@@ -110,8 +109,19 @@ var nodeAddCommand = &cobra.Command{
 			}
 			fmt.Fprintf(stdout, string(data))
 		} else {
-			fmt.Fprintf(stdout, "Node information:\n")
-			printNodeInfo(stdout, node)
+			fmt.Fprintf(stdout, "Node information:\n"+
+				"Id: %v\n"+
+				"State: %v\n"+
+				"Cluster Id: %v\n"+
+				"Zone: %v\n"+
+				"Management Hostname %v\n"+
+				"Storage Hostname %v\n",
+				node.Id,
+				node.State,
+				node.ClusterId,
+				node.Zone,
+				node.Hostnames.Manage[0],
+				node.Hostnames.Storage[0])
 		}
 		return nil
 	},
@@ -278,6 +288,10 @@ var nodeInfoCommand = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		var entryStateRemoved api.EntryState = "removed"
+		if info.State == api.EntryStateFailed {
+			info.State = entryStateRemoved
+		}
 
 		if options.Json {
 			data, err := json.Marshal(info)
@@ -286,7 +300,24 @@ var nodeInfoCommand = &cobra.Command{
 			}
 			fmt.Fprintf(stdout, string(data))
 		} else {
-			printNodeInfo(stdout, info)
+			fmt.Fprintf(stdout, "Node Id: %v\n"+
+				"State: %v\n"+
+				"Cluster Id: %v\n"+
+				"Zone: %v\n"+
+				"Management Hostname: %v\n"+
+				"Storage Hostname: %v\n",
+				info.Id,
+				info.State,
+				info.ClusterId,
+				info.Zone,
+				info.Hostnames.Manage[0],
+				info.Hostnames.Storage[0])
+			if len(info.Tags) != 0 {
+				fmt.Fprintf(stdout, "Tags:\n")
+				for k, v := range info.Tags {
+					fmt.Fprintf(stdout, "  %v: %v\n", k, v)
+				}
+			}
 			fmt.Fprintf(stdout, "Devices:\n")
 			for _, d := range info.DevicesInfo {
 				fmt.Fprintf(stdout, "Id:%-35v"+
@@ -298,7 +329,7 @@ var nodeInfoCommand = &cobra.Command{
 					"Bricks:%-8v\n",
 					d.Id,
 					d.Name,
-					entryStateString(d.State),
+					d.State,
 					d.Storage.Total/(1024*1024),
 					d.Storage.Used/(1024*1024),
 					d.Storage.Free/(1024*1024),
@@ -373,25 +404,4 @@ var nodeRmTagsCommand = &cobra.Command{
 		}
 		return rmTagsCommand(cmd, heketi.NodeSetTags)
 	},
-}
-
-func printNodeInfo(w io.Writer, info *api.NodeInfoResponse) {
-	fmt.Fprintf(stdout, "Node Id: %v\n"+
-		"State: %v\n"+
-		"Cluster Id: %v\n"+
-		"Zone: %v\n"+
-		"Management Hostname: %v\n"+
-		"Storage Hostname: %v\n",
-		info.Id,
-		entryStateString(info.State),
-		info.ClusterId,
-		info.Zone,
-		info.Hostnames.Manage[0],
-		info.Hostnames.Storage[0])
-	if len(info.Tags) != 0 {
-		fmt.Fprintf(stdout, "Tags:\n")
-		for k, v := range info.Tags {
-			fmt.Fprintf(stdout, "  %v: %v\n", k, v)
-		}
-	}
 }

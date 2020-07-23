@@ -17,7 +17,6 @@ INFO = 'Info'
 
 ERR_COUNT = collections.Counter()
 
-
 def report(otype, oid, *msg):
     ERR_COUNT[otype] += 1
     print ('{} {}: {}'.format(otype, oid, ': '.join(msg)))
@@ -29,19 +28,9 @@ def check_cluster(data, cid, cluster):
     for vid in cluster[INFO]['volumes']:
         if vid not in data['volumeentries']:
             report('Cluster', cid, 'unknown volume', vid)
-    if not unique_elements(cluster[INFO]['volumes']):
-        report('Cluster', cid, 'duplicate ids in volume list')
     for vid in cluster[INFO]['blockvolumes']:
         if vid not in data['blockvolumeentries']:
             report('Cluster', cid, 'unknown block volume', vid)
-    if not unique_elements(cluster[INFO]['blockvolumes']):
-        report('Cluster', cid, 'duplicate ids in block volume list')
-    if not unique_elements(cluster[INFO]['nodes']):
-        report('Cluster', cid, 'duplicate ids in nodes list')
-    for nid in cluster[INFO]['nodes']:
-        if nid not in data['nodeentries']:
-            report('Cluster', cid, 'unknown node', nid)
-
 
 
 def check_brick(data, bid, brick):
@@ -65,17 +54,6 @@ def check_brick(data, bid, brick):
     _check_pending('Brick', bid, brick, data)
 
 
-def vol_bv_list(volume):
-    return volume[INFO].get("blockinfo", {}).get("blockvolume", [])
-
-
-def unique_elements(l):
-    for item in l:
-        if l.count(item) > 1:
-            return False
-    return True
-
-
 def check_volume(data, vid, volume):
     if vid != volume[INFO]['id']:
         report('Volume', vid, 'id mismatch', volume[INFO]['id'])
@@ -83,31 +61,23 @@ def check_volume(data, vid, volume):
         if bid not in data['brickentries']:
             report('Volume', vid, 'unknown brick', bid)
     bvsize = 0
-    bvlist = vol_bv_list(volume)
-    for bvid in bvlist:
+    for bvid in volume[INFO].get("blockinfo", {}).get("blockvolume", []):
         if bvid not in data["blockvolumeentries"]:
             report('Volume', vid, 'unknown block volume', bvid)
         else:
             bv = data["blockvolumeentries"][bvid]
             bvsize += bv[INFO]['size']
-    if not unique_elements(bvlist):
-        report('Volume', vid, 'duplicate ids in block volume list')
     if volume[INFO].get("block"):
         vol_size = volume[INFO]["size"]
         free_size = volume[INFO].get("blockinfo", {}).get("freesize", 0)
         rsvd_size = volume[INFO].get("blockinfo", {}).get("reservedsize", 0)
         used_size = vol_size - free_size - rsvd_size
         if bvsize != used_size:
-            rf = ('block-vol-sum={}'
-                  ' size={} free-size={} reserved-size={} used-size={}')
-            report(
-                'Volume', vid, 'block size differs',
-                rf.format(bvsize, vol_size, free_size, rsvd_size, used_size))
+            report('Volume', vid, 'block size differs',
+                'calulated-size={} size={} free-size={} reserved-size={} used-size={}'.format(
+                    bvsize, vol_size, free_size, rsvd_size, used_size))
     elif bvsize != 0:
         report('Volume', vid, 'has block volumes but not block flag')
-    cid = volume[INFO]['cluster']
-    if vid not in data['clusterentries'][cid][INFO]['volumes']:
-        report('Volume', vid, 'not linked to by cluster', cid)
     _check_pending('Volume', vid, volume, data)
 
 
@@ -120,11 +90,6 @@ def check_block_volume(data, bvid, bvol):
         report("Block Volume", bvid, "cluster not found", cluster_id)
     if bhv_id not in data["volumeentries"]:
         report("Block Volume", bvid, "hosting volume not found", bhv_id)
-    elif bvid not in vol_bv_list(data["volumeentries"][bhv_id]):
-        report("Block Volume", bvid, "not tracked in hosting volume", bhv_id)
-    cid = bvol[INFO]['cluster']
-    if bvid not in data['clusterentries'][cid][INFO]['blockvolumes']:
-        report('Block Volume', bvid, 'not linked to by cluster', cid)
     _check_pending('Block Volume', bvid, bvol, data)
 
 
@@ -138,13 +103,6 @@ def check_device(data, did, device):
         else:
             b = data['brickentries'][bid]
             bsum += b["TpSize"] + b["PoolMetadataSize"]
-    if not unique_elements(device['Bricks']):
-        report('Device', did, 'duplicate ids in brick list')
-    nid = device['NodeId']
-    if nid not in data['nodeentries']:
-        report('Device', did, 'node entry not found', nid)
-    elif did not in data['nodeentries'][nid]['Devices']:
-        report('Device', did, 'not linked by node', nid)
     s = device[INFO]["storage"]
     if s["total"] != s["free"] + s["used"]:
         report("Device", did, "size values differ",
@@ -155,38 +113,21 @@ def check_device(data, did, device):
     _check_pending('Device', did, device, data)
 
 
-def check_node(data, nid, node):
-    if nid != node[INFO]['id']:
-        report('Node', nid, 'id mismatch', device[INFO]['id'])
-    cid = node[INFO]['cluster']
-    if cid not in data['clusterentries']:
-        report('Node', nid, 'invalid cluster id', cid)
-    elif nid not in data['clusterentries'][cid][INFO]['nodes']:
-        report('Node', nid, 'not linked by cluster', cid)
-    if not unique_elements(node['Devices']):
-        report('Node', nid, 'duplicate ids in device list')
-    for did in node['Devices']:
-        if did not in data['deviceentries']:
-            report('Node', nid, 'unknown device', did)
-        elif nid != data['deviceentries'][did]['NodeId']:
-            report('Node', nid, 'points to mismatched device', nid)
-
-
 def check_pending(data, pid, pop):
     if pid != pop["Id"]:
         report("Pending Op", pid, "id mismatch", pop["Id"])
     changetype_to_key = {
-        1: "brickentries",  # add brick
-        2: "volumeentries",  # add vol
-        3: "brickentries",  # del brick
-        4: "volumeentries",  # del vol
-        5: "volumeentries",  # ExpandVolume
-        6: "blockvolumeentries",  # AddBlockVolume
-        7: "blockvolumeentries",  # DeleteBlockVolume
-        8: "deviceentries",  # RemoveDevice
-        9: "volumeentries",  # CloneVolume
-        10: "volumeentries",  # SnapshotVolume
-        11: "volumeentries",  # AddVolumeClone
+        1: "brickentries", # add brick
+        2: "volumeentries", # add vol
+        3: "brickentries", # del brick
+        4: "volumeentries", # del vol
+        5: "volumeentries", #ExpandVolume
+        6: "blockvolumeentries", #AddBlockVolume
+        7: "blockvolumeentries", #DeleteBlockVolume
+        8: "deviceentries", #RemoveDevice
+        9: "volumeentries", #CloneVolume
+        10: "volumeentries", #SnapshotVolume
+        11: "volumeentries", #AddVolumeClone
     }
     for a in pop["Actions"]:
         ch_type = a["Change"]
@@ -197,7 +138,7 @@ def check_pending(data, pid, pop):
             continue
         if ch_id not in data[key]:
             report("Pending Op", pid, "id in change missing",
-                   "{} not found in {}".format(ch_id, key))
+                "{} not found in {}".format(ch_id, key))
 
 
 def _check_pending(what, myid, item, data):
@@ -226,9 +167,6 @@ def check_db(data):
 
     for pid, p in data['pendingoperations'].items():
         check_pending(data, pid, p)
-
-    for nid, n in data['nodeentries'].items():
-        check_node(data, nid, n)
 
 
 def summarize_db(data):
@@ -263,7 +201,7 @@ def summarize_db(data):
 try:
     filename = sys.argv[1]
 except IndexError:
-    sys.stderr.write("error: filename required\n")
+    sys.stderr.write("error: filename required")
     sys.exit(2)
 
 with open(filename) as fh:

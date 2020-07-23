@@ -64,79 +64,49 @@ var (
 	deviceCount = promDesc(
 		"device_count",
 		"Number of devices on host",
-		[]string{"cluster", "hostname", "storage_hostname"},
+		[]string{"cluster", "hostname"},
 	)
 
 	deviceSize = promDesc(
 		"device_size",
 		"Total size of the device",
-		[]string{"cluster", "hostname", "storage_hostname", "id", "device", "pv_uuid"},
+		[]string{"cluster", "hostname", "device"},
 	)
 
 	deviceFree = promDesc(
 		"device_free",
 		"Amount of Free space available on the device",
-		[]string{"cluster", "hostname", "storage_hostname", "id", "device", "pv_uuid"},
+		[]string{"cluster", "hostname", "device"},
 	)
 
 	deviceUsed = promDesc(
 		"device_used",
 		"Amount of space used on the device",
-		[]string{"cluster", "hostname", "storage_hostname", "id", "device", "pv_uuid"},
+		[]string{"cluster", "hostname", "device"},
 	)
 
 	deviceSizeInBytes = promDesc(
 		"device_size_bytes",
 		"Total size of the device in bytes",
-		[]string{"cluster", "hostname", "storage_hostname", "id", "device", "pv_uuid"},
+		[]string{"cluster", "hostname", "device"},
 	)
 
 	deviceFreeInBytes = promDesc(
 		"device_free_bytes",
 		"Amount of Free space available on the device in bytes",
-		[]string{"cluster", "hostname", "storage_hostname", "id", "device", "pv_uuid"},
+		[]string{"cluster", "hostname", "device"},
 	)
 
 	deviceUsedInBytes = promDesc(
 		"device_used_bytes",
 		"Amount of space used on the device in bytes",
-		[]string{"cluster", "hostname", "storage_hostname", "id", "device", "pv_uuid"},
+		[]string{"cluster", "hostname", "device"},
 	)
 
 	brickCount = promDesc(
 		"device_brick_count",
 		"Number of bricks on device",
-		[]string{"cluster", "hostname", "storage_hostname", "id", "device", "pv_uuid"},
-	)
-
-	staleCount = promDesc(
-		"operations_stale_count",
-		"Number of Stale Operations",
-		nil,
-	)
-
-	failedCount = promDesc(
-		"operations_failed_count",
-		"Number of Failed Operations",
-		nil,
-	)
-
-	newCount = promDesc(
-		"operations_new_count",
-		"Number of New Operations",
-		nil,
-	)
-
-	totalCount = promDesc(
-		"operations_total_count",
-		"Total Number of Operations",
-		nil,
-	)
-
-	inFlightCount = promDesc(
-		"operations_inFlight_count",
-		"Number of in flight Operations",
-		nil,
+		[]string{"cluster", "hostname", "device"},
 	)
 )
 
@@ -163,12 +133,6 @@ func (m *Metrics) Describe(ch chan<- *prometheus.Desc) {
 	ch <- deviceFreeInBytes
 	ch <- deviceUsedInBytes
 	ch <- brickCount
-	/* following metrics are grabbed from operations list, gives number of stale|failed|new|total|inFlight operations */
-	ch <- staleCount
-	ch <- failedCount
-	ch <- newCount
-	ch <- totalCount
-	ch <- inFlightCount
 
 }
 
@@ -185,7 +149,7 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 
 	//Do not collect further metrics if heketi is down
 	if err != nil {
-		log.Println("Can't collect topology info for metrics: " + err.Error())
+		log.Println("Can't collect toplogy info for metrics: " + err.Error())
 		return
 	}
 
@@ -194,37 +158,6 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 		prometheus.GaugeValue,
 		float64(len(topinfo.ClusterList)),
 	)
-
-	opinfo, err := m.app.AppOperationsInfo()
-	if err != nil {
-		log.Println("Can't collect Operations info for metrics: " + err.Error())
-	} else {
-		ch <- prometheus.MustNewConstMetric(
-			staleCount,
-			prometheus.GaugeValue,
-			float64(opinfo.Stale))
-
-		ch <- prometheus.MustNewConstMetric(
-			failedCount,
-			prometheus.GaugeValue,
-			float64(opinfo.Failed))
-
-		ch <- prometheus.MustNewConstMetric(
-			newCount,
-			prometheus.GaugeValue,
-			float64(opinfo.New))
-
-		ch <- prometheus.MustNewConstMetric(
-			totalCount,
-			prometheus.GaugeValue,
-			float64(opinfo.Total))
-
-		ch <- prometheus.MustNewConstMetric(
-			inFlightCount,
-			prometheus.GaugeValue,
-			float64(opinfo.InFlight))
-	}
-
 	for _, cluster := range topinfo.ClusterList {
 		ch <- prometheus.MustNewConstMetric(
 			volumesCount,
@@ -246,7 +179,6 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 			float64(len(cluster.Nodes)),
 			cluster.Id,
 		)
-
 		for _, node := range cluster.Nodes {
 			ch <- prometheus.MustNewConstMetric(
 				deviceCount,
@@ -254,7 +186,6 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 				float64(len(node.DevicesInfo)),
 				cluster.Id,
 				node.Hostnames.Manage[0],
-				node.Hostnames.Storage[0],
 			)
 			for _, device := range node.DevicesInfo {
 				ch <- prometheus.MustNewConstMetric(
@@ -263,10 +194,7 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 					float64(device.Storage.Total),
 					cluster.Id,
 					node.Hostnames.Manage[0],
-					node.Hostnames.Storage[0],
-					device.Id,
 					device.Name,
-					device.PvUUID,
 				)
 				ch <- prometheus.MustNewConstMetric(
 					deviceFree,
@@ -274,20 +202,14 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 					float64(device.Storage.Free),
 					cluster.Id,
 					node.Hostnames.Manage[0],
-					node.Hostnames.Storage[0],
-					device.Id,
 					device.Name,
-					device.PvUUID,
 				)
 				ch <- prometheus.MustNewConstMetric(
 					deviceUsed, prometheus.GaugeValue,
 					float64(device.Storage.Used),
 					cluster.Id,
 					node.Hostnames.Manage[0],
-					node.Hostnames.Storage[0],
-					device.Id,
 					device.Name,
-					device.PvUUID,
 				)
 				ch <- prometheus.MustNewConstMetric(
 					deviceSizeInBytes,
@@ -295,10 +217,7 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 					float64(device.Storage.Total*KB),
 					cluster.Id,
 					node.Hostnames.Manage[0],
-					node.Hostnames.Storage[0],
-					device.Id,
 					device.Name,
-					device.PvUUID,
 				)
 				ch <- prometheus.MustNewConstMetric(
 					deviceFreeInBytes,
@@ -306,20 +225,14 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 					float64(device.Storage.Free*KB),
 					cluster.Id,
 					node.Hostnames.Manage[0],
-					node.Hostnames.Storage[0],
-					device.Id,
 					device.Name,
-					device.PvUUID,
 				)
 				ch <- prometheus.MustNewConstMetric(
 					deviceUsedInBytes, prometheus.GaugeValue,
 					float64(device.Storage.Used*KB),
 					cluster.Id,
 					node.Hostnames.Manage[0],
-					node.Hostnames.Storage[0],
-					device.Id,
 					device.Name,
-					device.PvUUID,
 				)
 
 				ch <- prometheus.MustNewConstMetric(
@@ -328,10 +241,7 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 					float64(len(device.Bricks)),
 					cluster.Id,
 					node.Hostnames.Manage[0],
-					node.Hostnames.Storage[0],
-					device.Id,
 					device.Name,
-					device.PvUUID,
 				)
 			}
 		}

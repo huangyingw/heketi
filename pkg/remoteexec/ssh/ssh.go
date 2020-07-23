@@ -16,17 +16,13 @@ import (
 	"log"
 	"net"
 	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
-	"golang.org/x/crypto/ssh/knownhosts"
 
 	"github.com/heketi/heketi/pkg/logging"
 	rex "github.com/heketi/heketi/pkg/remoteexec"
-	rexlog "github.com/heketi/heketi/pkg/remoteexec/log"
 )
 
 type SshExec struct {
@@ -71,9 +67,8 @@ func NewSshExecWithAuth(logger *logging.Logger, user string) *SshExec {
 	}
 
 	sshexec.clientConfig = &ssh.ClientConfig{
-		User:            user,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signers...)},
-		HostKeyCallback: getHostKeyCallback(),
+		User: user,
+		Auth: []ssh.AuthMethod{ssh.PublicKeys(signers...)},
 	}
 
 	return sshexec
@@ -98,30 +93,15 @@ func NewSshExecWithKeyFile(logger *logging.Logger, user string, file string) *Ss
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(key),
 		},
-		HostKeyCallback: getHostKeyCallback(),
 	}
 
 	return sshexec
 }
 
-func getHostKeyCallback() ssh.HostKeyCallback {
-	hostKeysFiles := os.Getenv("SSH_KNOWN_HOSTS")
-	if len(hostKeysFiles) == 0 {
-		log.Println("no SSH_KNOWN_HOSTS specified, skipping ssh host verification")
-		return ssh.InsecureIgnoreHostKey()
-	}
-
-	knownHostsCallback, err := knownhosts.New(filepath.SplitList(hostKeysFiles)...)
-	if err != nil {
-		log.Fatalf("error parsing SSH_KNOWN_HOSTS %q: %v", hostKeysFiles, err)
-	}
-	return knownHostsCallback
-}
-
 // This function was based from https://github.com/coreos/etcd-manager/blob/master/main.go
 func (s *SshExec) ConnectAndExec(host string, commands []string, timeoutMinutes int, useSudo bool) ([]string, error) {
 
-	results, err := s.ExecCommands(host, rex.ToCmds(commands), timeoutMinutes, useSudo)
+	results, err := s.ExecCommands(host, commands, timeoutMinutes, useSudo)
 	if err != nil {
 		return nil, err
 	}
@@ -129,11 +109,10 @@ func (s *SshExec) ConnectAndExec(host string, commands []string, timeoutMinutes 
 }
 
 func (s *SshExec) ExecCommands(
-	host string, commands rex.Cmds,
+	host string, commands []string,
 	timeoutMinutes int, useSudo bool) (rex.Results, error) {
 
 	results := make(rex.Results, len(commands))
-	cmdlog := rexlog.NewCommandLogger(s.logger)
 
 	// :TODO: Will need a timeout here in case the server does not respond
 	client, err := ssh.Dial("tcp", host, s.clientConfig)
@@ -144,8 +123,7 @@ func (s *SshExec) ExecCommands(
 	defer client.Close()
 
 	// Execute each command
-	for index, cmd := range commands {
-		cmdlog.Before(cmd, host)
+	for index, command := range commands {
 
 		session, err := client.NewSession()
 		if err != nil {
@@ -160,15 +138,11 @@ func (s *SshExec) ExecCommands(
 		session.Stdout = &b
 		session.Stderr = &berr
 
-		command := cmd.String()
 		if useSudo {
 			command = "sudo " + command
 		}
 		// Execute command in a shell
-		command = "/bin/bash -c '" +
-			// Escape single quotes in commands (' -> '\'')
-			strings.Replace(command, `'`, `'\''`, -1) +
-			"'"
+		command = "/bin/bash -c '" + command + "'"
 
 		// Execute command
 		err = session.Start(command)
@@ -195,9 +169,13 @@ func (s *SshExec) ExecCommands(
 				Err:       err,
 			}
 			if err == nil {
-				cmdlog.Success(cmd, host, r.Output, r.ErrOutput)
+				s.logger.Debug(
+					"Ran command [%v] on %v: Stdout [%v]: Stderr [%v]",
+					command, host, r.Output, r.ErrOutput)
 			} else {
-				cmdlog.Error(cmd, err, host, r.Output, r.ErrOutput)
+				s.logger.LogError(
+					"Failed to run command [%v] on %v: Err[%v]: Stdout [%v]: Stderr [%v]",
+					command, host, err, r.Output, r.ErrOutput)
 				// extract the real error code if possible
 				if ee, ok := err.(*ssh.ExitError); ok {
 					r.ExitStatus = ee.ExitStatus()
@@ -213,7 +191,8 @@ func (s *SshExec) ExecCommands(
 			}
 
 		case <-timeout:
-			cmdlog.Timeout(cmd, err, host, b.String(), berr.String())
+			s.logger.LogError("Timeout on command [%v] on %v: Err[%v]: Stdout [%v]: Stderr [%v]",
+				command, host, err, b.String(), berr.String())
 			err := session.Signal(ssh.SIGKILL)
 			if err != nil {
 				s.logger.LogError("Unable to send kill signal to command [%v] on host [%v]: %v",

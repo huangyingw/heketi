@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/heketi/heketi/pkg/glusterfs/api"
 	"github.com/heketi/heketi/pkg/utils"
@@ -56,7 +57,7 @@ func (c *Client) VolumeCreate(request *api.VolumeCreateRequest) (
 	}
 
 	// Wait for response
-	r, err = c.pollResponse(r)
+	r, err = c.waitForResponseWithTimer(r, time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +111,7 @@ func (c *Client) VolumeSetBlockRestriction(id string, request *api.VolumeBlockRe
 	}
 
 	// Wait for response
-	r, err = c.pollResponse(r)
+	r, err = c.waitForResponseWithTimer(r, time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +165,7 @@ func (c *Client) VolumeExpand(id string, request *api.VolumeExpandRequest) (
 	}
 
 	// Wait for response
-	r, err = c.pollResponse(r)
+	r, err = c.waitForResponseWithTimer(r, time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +277,7 @@ func (c *Client) VolumeDelete(id string) error {
 	}
 
 	// Wait for response
-	r, err = c.pollResponse(r)
+	r, err = c.waitForResponseWithTimer(r, time.Second)
 	if err != nil {
 		return err
 	}
@@ -318,7 +319,7 @@ func (c *Client) VolumeClone(id string, request *api.VolumeCloneRequest) (*api.V
 	}
 
 	// Wait for response
-	r, err = c.pollResponse(r)
+	r, err = c.waitForResponseWithTimer(r, time.Second)
 	if err != nil {
 		return nil, err
 	}

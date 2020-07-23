@@ -356,7 +356,7 @@ func (ve *VolumeExpandOperation) CleanDone() error {
 		}
 		bricks, err := bricksFromOp(txdb, ve.op, v.Info.Gid)
 		for _, brick := range bricks {
-			err := brick.removeAndFree(tx, v, ve.reclaimed[brick.Info.DeviceId])
+			err := brick.removeAndFree(tx, v, ve.reclaimed[brick.Info.Id])
 			if err != nil {
 				return err
 			}

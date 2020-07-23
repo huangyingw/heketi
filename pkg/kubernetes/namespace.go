@@ -14,7 +14,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/v1"
 )
 
 const (
@@ -30,5 +31,5 @@ func GetNamespace() (string, error) {
 	if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
 		return ns, nil
 	}
-	return v1.NamespaceDefault, nil
+	return api.NamespaceDefault, nil
 }

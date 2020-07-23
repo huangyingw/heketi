@@ -45,7 +45,7 @@ var dumpDbCommand = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintf(stdout, "%s", dump)
+		fmt.Fprintf(stdout, dump)
 
 		return nil
 	},
@@ -67,7 +67,7 @@ var checkDbCommand = &cobra.Command{
 			return err
 		}
 
-		fmt.Fprintf(stdout, "%s", checkResponse)
+		fmt.Fprintf(stdout, checkResponse)
 
 		return nil
 	},

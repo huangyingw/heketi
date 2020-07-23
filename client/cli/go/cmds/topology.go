@@ -27,10 +27,7 @@ const (
 	DURABILITY_STRING_EC              = "disperse"
 )
 
-var (
-	jsonConfigFile string
-	customTemplate string
-)
+var jsonConfigFile string
 
 // Config file
 type ConfigFileDeviceOptions struct {
@@ -85,12 +82,10 @@ func (device *ConfigFileDevice) UnmarshalJSON(b []byte) error {
 func init() {
 	RootCmd.AddCommand(topologyCommand)
 	topologyCommand.AddCommand(topologyLoadCommand)
+	topologyCommand.AddCommand(topologyInfoCommand)
 	topologyLoadCommand.Flags().StringVarP(&jsonConfigFile, "json", "j", "",
 		"\n\tConfiguration containing devices, nodes, and clusters, in"+
 			"\n\tJSON format.")
-	topologyCommand.AddCommand(topologyInfoCommand)
-	topologyInfoCommand.Flags().StringVarP(&customTemplate, "template", "T", "",
-		"\n\tCustom Go-template for formatting topology info output.")
 	topologyLoadCommand.SilenceUsage = true
 	topologyInfoCommand.SilenceUsage = true
 }
@@ -304,11 +299,10 @@ var topologyInfoCommand = &cobra.Command{
 			}
 			fmt.Fprintf(stdout, string(data))
 		} else {
-			ts := topologyTemplate
-			if customTemplate != "" {
-				ts = customTemplate
+			// Get the cluster list and iterate over
+			for _, c := range topoinfo.ClusterList {
+				printClusterInfo(c)
 			}
-			return printTopologyInfo(topoinfo, ts)
 		}
 
 		return nil
@@ -319,8 +313,7 @@ var topologyInfoCommand = &cobra.Command{
 // using a series of printf calls. This mixing is preserved in
 // the template and is intentional. Deciding to change formatting
 // is left as a future exercise if desired.
-var topologyTemplate = `
-{{- define "CLUSTER"}}
+var clusterTemplate = `
 Cluster Id: {{.Id}}
 
     File:  {{.File}}
@@ -360,7 +353,7 @@ Cluster Id: {{.Id}}
     Nodes:
 {{range .Nodes}}
 	Node Id: {{.Id}}
-	State: {{.State | entryStateString }}
+	State: {{.State}}
 	Cluster Id: {{.ClusterId}}
 	Zone: {{.Zone}}
 	Management Hostnames: {{join .Hostnames.Manage ", "}}
@@ -371,17 +364,13 @@ Cluster Id: {{.Id}}
 	Devices:
 {{- range .DevicesInfo}}
 		Id:{{.Id | printf "%-35v" -}}
-		State:{{.State | entryStateString | printf "%-10v" -}}
+		Name:{{.Name | printf "%-20v" -}}
+		State:{{.State | printf "%-10v" -}}
 		Size (GiB):{{kibToGib .Storage.Total | printf "%-8v" -}}
 		Used (GiB):{{kibToGib .Storage.Used | printf "%-8v" -}}
 		Free (GiB):{{kibToGib .Storage.Free | printf "%-8v"}}
 {{- if len .Tags | ne 0 }}
 			Tags:{{range $tk, $tv := .Tags }} {{$tk}}:{{$tv -}}{{end}}
-{{end}}
-{{- if len .Paths | ne 0 }}
-			Known Paths:{{range $p := .Paths }} {{$p}}{{end}}
-{{else}}
-			Known Paths: {{.Name}}
 {{end}}
 			Bricks:
 {{- range .Bricks}}
@@ -391,25 +380,21 @@ Cluster Id: {{.Id}}
 {{- end}}
 {{- end}}
 {{end}}
-{{- end}}
-{{- range $cluster := .ClusterList}}{{template "CLUSTER" $cluster}}{{end}}
 `
 
-func printTopologyInfo(topo *api.TopologyInfoResponse, ts string) error {
+func printClusterInfo(cluster api.Cluster) {
 	fm := template.FuncMap{
 		"join": strings.Join,
 		"kibToGib": func(i uint64) string {
 			return fmt.Sprintf("%d", i/(1024*1024))
 		},
-		"entryStateString": entryStateString,
 	}
-	t, err := template.New("topology").Funcs(fm).Parse(ts)
+	t, err := template.New("cluster").Funcs(fm).Parse(clusterTemplate)
 	if err != nil {
-		return fmt.Errorf("failed to parse template: %v", err)
+		panic(err)
 	}
-	err = t.Execute(os.Stdout, topo)
+	err = t.Execute(os.Stdout, cluster)
 	if err != nil {
-		return fmt.Errorf("failed to execute template: %v", err)
+		panic(err)
 	}
-	return nil
 }

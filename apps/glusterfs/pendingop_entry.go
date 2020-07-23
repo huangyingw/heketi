@@ -284,73 +284,11 @@ func (p *PendingOperationEntry) RecordDeleteBlockVolume(bv *BlockVolumeEntry) {
 	bv.Pending.Id = p.Id
 }
 
-// RecordExpandBlockVolume adds tracking metadata for a block volume that is being
-// expanded to the PendingOperationEntry and BlockVolumeEntry.
-func (p *PendingOperationEntry) RecordExpandBlockVolume(bv *BlockVolumeEntry, newSizeGB int) {
-	p.recordSizeChange(OpExpandBlockVolume, bv.Info.Id, newSizeGB)
-	p.Type = OperationExpandBlockVolume
-}
-
 // RecordRemoveDevice adds tracking metadata for a long-running device
 // removal operation.
 func (p *PendingOperationEntry) RecordRemoveDevice(d *DeviceEntry) {
 	p.recordChange(OpRemoveDevice, d.Info.Id)
 	p.Type = OperationRemoveDevice
-}
-
-// RecordChild adds or replaces a child operation for the current
-// pending operation entry. Both child and parent can only have
-// one parent/child relationship. Both are updated.
-func (p *PendingOperationEntry) RecordChild(child *PendingOperationEntry) {
-	// track childs id on parent
-	parentsChild := findChange(p.Actions, OpChildOperation)
-	if parentsChild < 0 {
-		a := PendingOperationAction{Change: OpChildOperation, Id: child.Id}
-		p.Actions = append(p.Actions, a)
-	} else {
-		p.Actions[parentsChild].Id = child.Id
-	}
-	// track parent's id on child
-	childsParent := findChange(child.Actions, OpParentOperation)
-	if childsParent < 0 {
-		a := PendingOperationAction{Change: OpParentOperation, Id: p.Id}
-		child.Actions = append(child.Actions, a)
-	} else {
-		child.Actions[childsParent].Id = p.Id
-	}
-}
-
-// ClearChild removes any child operations from the parent.
-func (p *PendingOperationEntry) ClearChild() {
-	newActions := []PendingOperationAction{}
-	for _, action := range p.Actions {
-		if action.Change != OpChildOperation {
-			newActions = append(newActions, action)
-		}
-	}
-	p.Actions = newActions
-}
-
-// IsParent returns true if this pending operation entry is the parent
-// of another operation.
-func (p *PendingOperationEntry) IsParent() bool {
-	return findChange(p.Actions, OpChildOperation) > 0
-}
-
-// ChildId returns the id of a child operation connected to this parent
-// if one exists. Returns empty string otherwise.
-func (p *PendingOperationEntry) ChildId() string {
-	i := findChange(p.Actions, OpChildOperation)
-	if i < 0 {
-		return ""
-	}
-	return p.Actions[i].Id
-}
-
-// IsChild returns true if this pending operation entry is the child
-// of another operation.
-func (p *PendingOperationEntry) IsChild() bool {
-	return findChange(p.Actions, OpParentOperation) > 0
 }
 
 func (p *PendingOperationEntry) ToInfo() api.PendingOperationInfo {
@@ -452,23 +390,13 @@ func (p *PendingOperationEntry) consistencyCheck(db Db) (response DbEntryCheckRe
 			if p.Id != db.Bricks[action.Id].Pending.Id {
 				response.Inconsistencies = append(response.Inconsistencies, fmt.Sprintf("pending op %v id in change missing %v not found in bricks", p.Id, action.Id))
 			}
-		case OpAddVolume, OpDeleteVolume, OpCloneVolume, OpSnapshotVolume, OpAddVolumeClone:
+		case OpAddVolume, OpDeleteVolume, OpExpandVolume, OpCloneVolume, OpSnapshotVolume, OpAddVolumeClone:
 			if p.Id != db.Volumes[action.Id].Pending.Id {
 				response.Inconsistencies = append(response.Inconsistencies, fmt.Sprintf("pending op %v id in change missing %v not found in volumes", p.Id, action.Id))
 			}
 		case OpAddBlockVolume, OpDeleteBlockVolume:
 			if p.Id != db.BlockVolumes[action.Id].Pending.Id {
 				response.Inconsistencies = append(response.Inconsistencies, fmt.Sprintf("pending op %v id in change missing %v not found in blockvolumes", p.Id, action.Id))
-			}
-		case OpExpandVolume:
-			if _, found := db.Volumes[action.Id]; !found {
-				response.Inconsistencies = append(response.Inconsistencies,
-					fmt.Sprintf("pending op %v: change id missing %v not found in volumes", p.Id, action.Id))
-			}
-		case OpExpandBlockVolume:
-			if _, found := db.BlockVolumes[action.Id]; !found {
-				response.Inconsistencies = append(response.Inconsistencies,
-					fmt.Sprintf("pending op %v: change id missing %v not found in blockvolumes", p.Id, action.Id))
 			}
 		case OpRemoveDevice:
 			// This is a noop
@@ -477,13 +405,4 @@ func (p *PendingOperationEntry) consistencyCheck(db Db) (response DbEntryCheckRe
 		}
 	}
 	return
-}
-
-func findChange(actions []PendingOperationAction, c PendingChangeType) int {
-	for i, action := range actions {
-		if action.Change == c {
-			return i
-		}
-	}
-	return -1
 }

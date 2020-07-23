@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 
+	client "github.com/heketi/heketi/client/api/go-client"
 	"github.com/heketi/heketi/pkg/logging"
 	"github.com/heketi/heketi/pkg/testutils"
 	"github.com/heketi/heketi/server/config"
@@ -28,6 +29,7 @@ var (
 	logger = logging.NewLogger("[test]", logging.LEVEL_DEBUG)
 
 	heketiUrl = "http://localhost:8080"
+	heketi    = client.NewClientNoAuth(heketiUrl)
 
 	testCluster = &testutils.ClusterEnv{
 		HeketiUrl: heketiUrl,
@@ -49,7 +51,6 @@ var (
 			"/dev/vdi",
 		},
 	}
-	heketi = testCluster.HeketiClient()
 )
 
 // Using the original configuration file located at the path given

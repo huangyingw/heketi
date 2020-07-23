@@ -14,10 +14,7 @@ To install Heketi on an EPEL/Fedora please type the following:
 * EPEL
 
 ```
-Server:
 # yum install heketi
-Client:
-# yum install heketi-client
 ```
 
 

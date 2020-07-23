@@ -5,9 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${0}")" && pwd)"
 show_help() {
 	echo "$0 [options]"
 	echo "  Options:"
-	echo "    -d|--tests-dir    Specify the directory name"
-	echo "    --test T          Run test suite T (can be specified multiple times)"
-	echo "    --help            Display this help text"
+	echo "    --test T  Run test suite T (can be specified multiple times)"
+	echo "    --help    Display this help text"
 	echo ""
 }
 
@@ -46,10 +45,12 @@ done
 if [[ "${#TESTS[@]}" -eq 0 ]]; then
 	TESTS+=("TestSelfTest")
 	TESTS+=("TestSmokeTest")
-	TESTS+=("TestErrorHandling")
 	TESTS+=("TestVolumeNotDeletedWhenNodeIsDown")
+	TESTS+=("TestVolumeSnapshotBehavior")
+	TESTS+=("TestManyBricksVolume")
 	TESTS+=("TestUpgrade")
 	TESTS+=("TestEnabledTLS")
+	TESTS+=("TestErrorHandling")
 fi
 
 # install glide

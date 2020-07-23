@@ -34,9 +34,8 @@ const (
 	RETRY_COUNT             = 6
 
 	// default delay values
-	MIN_DELAY  = 10
-	MAX_DELAY  = 30
-	POLL_DELAY = 400 // milliseconds
+	MIN_DELAY = 10
+	MAX_DELAY = 30
 )
 
 type ClientTLSOptions struct {
@@ -50,10 +49,8 @@ type ClientTLSOptions struct {
 type ClientOptions struct {
 	RetryEnabled bool
 	RetryCount   int
-	// control waits between retries (seconds)
+	// control waits between retries
 	RetryMinDelay, RetryMaxDelay int
-	// control wait time while polling for responses (milliseconds)
-	PollDelay int
 }
 
 // Client object
@@ -78,14 +75,6 @@ var defaultClientOptions = ClientOptions{
 	RetryCount:    RETRY_COUNT,
 	RetryMinDelay: MIN_DELAY,
 	RetryMaxDelay: MAX_DELAY,
-	PollDelay:     POLL_DELAY,
-}
-
-// DefaultClientOptions returns a ClientOptions type with all the fields
-// initialized to the default values used internally by the new-client
-// functions.
-func DefaultClientOptions() ClientOptions {
-	return defaultClientOptions
 }
 
 // NewClient creates a new client to access a Heketi server
@@ -204,11 +193,6 @@ func (c *Client) doBasic(req *http.Request) (*http.Response, error) {
 // Here we create a new token before it makes the next request.
 func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 	return c.setToken(req)
-}
-
-func (c *Client) pollResponse(r *http.Response) (*http.Response, error) {
-	return c.waitForResponseWithTimer(
-		r, time.Millisecond*time.Duration(c.opts.PollDelay))
 }
 
 // Wait for the job to finish, waiting waitTime on every loop

@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/heketi/heketi/pkg/glusterfs/api"
 	"github.com/heketi/heketi/pkg/utils"
@@ -150,7 +151,7 @@ func (c *Client) PendingOperationCleanUp(
 	// AND that the rest async framework in heketi needs to be
 	// polled in order to remove things from its map, the traditional
 	// poll server after request behavior is retained here.
-	r, err = c.pollResponse(r)
+	r, err = c.waitForResponseWithTimer(r, time.Second)
 	if err != nil {
 		return err
 	}

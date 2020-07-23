@@ -21,5 +21,4 @@ type Application interface {
 	TopologyInfo() (*api.TopologyInfoResponse, error)
 	Close()
 	Auth(w http.ResponseWriter, r *http.Request, next http.HandlerFunc)
-	AppOperationsInfo() (*api.OperationsInfo, error)
 }

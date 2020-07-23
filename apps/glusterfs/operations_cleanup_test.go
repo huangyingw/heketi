@@ -178,16 +178,27 @@ func TestOperationsCleanupSkipNonLoadable(t *testing.T) {
 	e := RunOperation(vc, app.executor)
 	tests.Assert(t, e == nil, "expected e == nil, got", e)
 
+	var deviceId string
 	app.db.View(func(tx *bolt.Tx) error {
 		l, e := PendingOperationList(tx)
 		tests.Assert(t, e == nil, "expected e == nil, got", e)
 		tests.Assert(t, len(l) == 0, "expected len(l) == 0, got:", len(l))
+		dl, e := DeviceList(tx)
+		tests.Assert(t, e == nil, "expected e == nil, got", e)
+		tests.Assert(t, len(dl) > 1, "expected len(dl) > 1, got:", len(dl))
+		for _, d := range dl {
+			dev, e := NewDeviceEntryFromId(tx, d)
+			tests.Assert(t, e == nil, "expected e == nil, got", e)
+			if len(dev.Bricks) >= 1 {
+				deviceId = d
+			}
+		}
+		tests.Assert(t, deviceId != "")
 		return nil
 	})
 
-	// clone is the last non loadable operation
-	vco := NewVolumeCloneOperation(vol, app.db, "foo")
-	e = vco.Build()
+	dro := NewDeviceRemoveOperation(deviceId, app.db)
+	e = dro.Build()
 	tests.Assert(t, e == nil, "expected e == nil, got", e)
 
 	app.db.Update(func(tx *bolt.Tx) error {
@@ -207,7 +218,7 @@ func TestOperationsCleanupSkipNonLoadable(t *testing.T) {
 	e = oc.Clean()
 	tests.Assert(t, e == nil, "expected e == nil, got", e)
 
-	// the non cleanable operation remains
+	// the non cleanable device remove operation remains
 	app.db.View(func(tx *bolt.Tx) error {
 		l, e := PendingOperationList(tx)
 		tests.Assert(t, e == nil, "expected e == nil, got", e)
@@ -821,7 +832,7 @@ func TestBackgroundOperationCleaner(t *testing.T) {
 	boc.Start()
 	defer boc.Stop()
 
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	app.db.Update(func(tx *bolt.Tx) error {
 		l, e := PendingOperationList(tx)
@@ -845,7 +856,7 @@ func TestBackgroundOperationCleaner(t *testing.T) {
 		return nil
 	})
 
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	app.db.Update(func(tx *bolt.Tx) error {
 		l, e := PendingOperationList(tx)
@@ -908,7 +919,7 @@ func TestBackgroundOperationCleanerWithTracking(t *testing.T) {
 	boc.Start()
 	defer boc.Stop()
 
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	app.db.Update(func(tx *bolt.Tx) error {
 		l, e := PendingOperationList(tx)
@@ -933,7 +944,7 @@ func TestBackgroundOperationCleanerWithTracking(t *testing.T) {
 	})
 
 	ot.Remove("FAKEFAKE")
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	app.db.Update(func(tx *bolt.Tx) error {
 		l, e := PendingOperationList(tx)

@@ -21,7 +21,7 @@ import (
 	"regexp"
 	"sort"
 
-	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
 )
 
@@ -181,8 +181,6 @@ type DeviceInfo struct {
 	Device
 	Storage StorageSize `json:"storage"`
 	Id      string      `json:"id"`
-	Paths   []string    `json:"paths,omitempty"`
-	PvUUID  string      `json:"pv_uuid,omitempty"`
 }
 
 type DeviceInfoResponse struct {
@@ -422,7 +420,6 @@ type BlockVolumeInfo struct {
 	} `json:"blockvolume"`
 	Cluster            string `json:"cluster,omitempty"`
 	BlockHostingVolume string `json:"blockhostingvolume,omitempty"`
-	UsableSize         int    `json:"usablesize,omitempty"`
 }
 
 type BlockVolumeInfoResponse struct {
@@ -431,16 +428,6 @@ type BlockVolumeInfoResponse struct {
 
 type BlockVolumeListResponse struct {
 	BlockVolumes []string `json:"blockvolumes"`
-}
-
-type BlockVolumeExpandRequest struct {
-	Size int `json:"new_size"`
-}
-
-func (blockVolExpandReq BlockVolumeExpandRequest) Validate() error {
-	return validation.ValidateStruct(&blockVolExpandReq,
-		validation.Field(&blockVolExpandReq.Size, validation.Required, validation.Min(1)),
-	)
 }
 
 type LogLevelInfo struct {
@@ -565,7 +552,6 @@ func NewBlockVolumeInfoResponse() *BlockVolumeInfoResponse {
 func (v *BlockVolumeInfoResponse) String() string {
 	s := fmt.Sprintf("Name: %v\n"+
 		"Size: %v\n"+
-		"UsableSize: %v\n"+
 		"Volume Id: %v\n"+
 		"Cluster Id: %v\n"+
 		"Hosts: %v\n"+
@@ -577,7 +563,6 @@ func (v *BlockVolumeInfoResponse) String() string {
 		"Block Hosting Volume: %v\n",
 		v.Name,
 		v.Size,
-		v.UsableSize,
 		v.Id,
 		v.Cluster,
 		v.BlockVolume.Hosts,
@@ -692,8 +677,4 @@ func ValidateIds(v interface{}) error {
 		}
 	}
 	return nil
-}
-
-// reserving a type for future options for brick evict
-type BrickEvictOptions struct {
 }
