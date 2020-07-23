@@ -8,7 +8,7 @@
     remote = origin
 [gsync]
     remote = heketi
-    branch = release/9
+    branch = release/10
 [branch "dev"]
     remote = origin
     merge = refs/heads/dev
