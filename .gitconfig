@@ -14,5 +14,6 @@
     merge = refs/heads/dev
 [gdif]
     ignore = install.sh
+    ignore = run.sh
     ignore = setup.sh
     ignore = topology.json
