@@ -13,6 +13,7 @@
     remote = origin
     merge = refs/heads/dev
 [gdif]
+    ignore = *.go.sh
     ignore = install.sh
     ignore = run.sh
     ignore = setup.sh
