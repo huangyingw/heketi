@@ -13,4 +13,5 @@ heketi --version
 heketi-cli --version
 cp -fv ./etc/heketi.json /etc/heketi
 cp -fv extras/systemd/heketi.service /etc/systemd/system/heketi.service
+systemctl daemon-reexec
 systemctl restart heketi
