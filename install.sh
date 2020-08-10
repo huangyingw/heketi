@@ -12,4 +12,5 @@ cp -fv ./client/cli/go/heketi-cli /usr/local/bin
 heketi --version
 heketi-cli --version
 cp -fv ./etc/heketi.json /etc/heketi
+cp -fv extras/systemd/heketi.service /etc/systemd/system/heketi.service
 systemctl restart heketi
