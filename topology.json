@@ -9,15 +9,15 @@
                         "gluster00"
                     ],
                     "storage": [
-                        "192.168.31.153"
+                        "192.168.31.213"
                     ]
                 },
                 "zone": 1
             },
             "devices": [
-                        "/dev/vdb",
-                        "/dev/vdc",
-                        "/dev/vdd"
+                "/dev/vdb",
+                "/dev/vdc",
+                "/dev/vdd"
             ]
                 },
                 {
@@ -35,7 +35,7 @@
             "devices": [
                         "/dev/vdb",
                         "/dev/vdc",
-                        "/dev/vdd"
+                        "/dev/vda"
             ]
                 },
                 {
@@ -53,7 +53,7 @@
             "devices": [
                         "/dev/vdb",
                         "/dev/vdc",
-                        "/dev/vdd"
+                        "/dev/vda"
                     ]
                 }
             ]
