@@ -161,6 +161,18 @@ index 7b0b2d2d..c6b06dcc 100644
  Restart=on-failure
  StandardOutput=syslog
  StandardError=syslog
+diff --git a/middleware/jwt.go.sh b/middleware/jwt.go.sh
+new file mode 100755
+index 00000000..7f57f83d
+--- /dev/null
++++ ./middleware/jwt.go.sh
+@@ -0,0 +1,6 @@
++#!/bin/zsh
++SCRIPT=$(realpath "$0")
++SCRIPTPATH=$(dirname "$SCRIPT")
++cd "$SCRIPTPATH"
++
++../run.sh
 diff --git a/readme b/readme
 new file mode 100644
 index 00000000..2b22604b
@@ -199,3 +211,18 @@ index 00000000..2b22604b
 +
 +heketi-cli device delete b2df3dcf1ed2bacab647ed4f2e81fae5
 +heketi-cli device delete caa681be5d6b76137c93ac9c29c255f1
+diff --git a/run.sh b/run.sh
+new file mode 100755
+index 00000000..95659a2e
+--- /dev/null
++++ ./run.sh
+@@ -0,0 +1,9 @@
++#!/bin/zsh
++SCRIPT=$(realpath "$0")
++SCRIPTPATH=$(dirname "$SCRIPT")
++cd "$SCRIPTPATH"
++
++./install.sh
++sleep 0.5s
++cp -fv ./topology.json /etc/heketi/topology.json
++heketi-cli topology load --json=/etc/heketi/topology.json
