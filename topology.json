@@ -1,50 +1,59 @@
 {
     "clusters": [{
         "nodes": [{
-            "node": {
-                "hostnames": {
-                    "manage": [
-                        "gluster00"
-                    ],
-                    "storage": [
-                        "192.168.31.153"
-                    ]
+                "node": {
+                    "hostnames": {
+                        "manage": [
+                            "gluster00"
+                        ],
+                        "storage": [
+                            "192.168.31.213"
+                        ]
+                    },
+                    "zone": 1
                 },
-                "zone": 1
+                "devices": [
+                    "/dev/vdb",
+                    "/dev/vdc",
+                    "/dev/vdd"
+                ]
             },
-            "devices": [
-                "/dev/vdc", "/dev/vdd", "/dev/vdb"
-            ]
-        }, {
-            "node": {
-                "hostnames": {
-                    "manage": [
-                        "gluster01"
-                    ],
-                    "storage": [
-                        "192.168.31.10"
-                    ]
+            {
+                "node": {
+                    "hostnames": {
+                        "manage": [
+                            "gluster01"
+                        ],
+                        "storage": [
+                            "192.168.31.10"
+                        ]
+                    },
+                    "zone": 2
                 },
-                "zone": 1
+                "devices": [
+                    "/dev/vdb",
+                    "/dev/vdc",
+                    "/dev/vda"
+                ]
             },
-            "devices": [
-                "/dev/vdc", "/dev/vdd", "/dev/vdb"
-            ]
-        }, {
-            "node": {
-                "hostnames": {
-                    "manage": [
-                        "gluster02"
-                    ],
-                    "storage": [
-                        "192.168.31.31"
-                    ]
+            {
+                "node": {
+                    "hostnames": {
+                        "manage": [
+                            "gluster02"
+                        ],
+                        "storage": [
+                            "192.168.31.31"
+                        ]
+                    },
+                    "zone": 3
                 },
-                "zone": 1
-            },
-            "devices": [
-                "/dev/vdc", "/dev/vdd", "/dev/vdb"
-            ]
-        }]
+                "devices": [
+                    "/dev/vdb",
+                    "/dev/vdc",
+                    "/dev/vda"
+                ]
+            }
+        ]
     }]
 }
