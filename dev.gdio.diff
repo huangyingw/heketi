@@ -7,76 +7,6 @@ index 63325398..3da6edb7 100644
  *.log
  .envrc
 +get
-diff --git a/delete_node.sh b/delete_node.sh
-new file mode 100755
-index 00000000..4c0b8feb
---- /dev/null
-+++ ./delete_node.sh
-@@ -0,0 +1,15 @@
-+#!/bin/zsh
-+SCRIPT=$(realpath "$0")
-+SCRIPTPATH=$(dirname "$SCRIPT")
-+cd "$SCRIPTPATH"
-+
-+nodeid="$1"
-+heketi-cli node disable "$nodeid"
-+heketi-cli node remove "$nodeid"
-+
-+for deviceid in $(heketi-cli node info "$nodeid" | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g')
-+do
-+    heketi-cli device delete "$deviceid"
-+done
-+
-+heketi-cli node delete "$nodeid"
-diff --git a/delete_node.test.sh b/delete_node.test.sh
-new file mode 100755
-index 00000000..1b9a3085
---- /dev/null
-+++ ./delete_node.test.sh
-@@ -0,0 +1,6 @@
-+#!/bin/zsh
-+SCRIPT=$(realpath "$0")
-+SCRIPTPATH=$(dirname "$SCRIPT")
-+cd "$SCRIPTPATH"
-+
-+./delete_node.sh 180338fe8e9aba9cae3f5e3bed6d884a
-diff --git a/delete_nodes.sh b/delete_nodes.sh
-new file mode 100755
-index 00000000..d1219381
---- /dev/null
-+++ ./delete_nodes.sh
-@@ -0,0 +1,14 @@
-+#!/bin/zsh
-+SCRIPT=$(realpath "$0")
-+SCRIPTPATH=$(dirname "$SCRIPT")
-+cd "$SCRIPTPATH"
-+
-+./delete_volumes.sh
-+
-+for nodeid in $(heketi-cli node list | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g')
-+do
-+    echo "nodeid --> $nodeid"
-+    ./delete_node.sh "$nodeid"
-+done
-+
-+heketi-cli node list
-diff --git a/delete_volumes.sh b/delete_volumes.sh
-new file mode 100755
-index 00000000..08647ccb
---- /dev/null
-+++ ./delete_volumes.sh
-@@ -0,0 +1,11 @@
-+#!/bin/zsh
-+SCRIPT=$(realpath "$0")
-+SCRIPTPATH=$(dirname "$SCRIPT")
-+cd "$SCRIPTPATH"
-+
-+for volumeid in $(heketi-cli volume list | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g')
-+do
-+    heketi-cli volume delete "$volumeid"
-+done
-+
-+heketi-cli volume list
 diff --git a/etc/heketi.json b/etc/heketi.json
 index de205bee..626343b5 100644
 --- ./etc/heketi.json
@@ -163,18 +93,6 @@ index 7b0b2d2d..c6b06dcc 100644
  Restart=on-failure
  StandardOutput=syslog
  StandardError=syslog
-diff --git a/middleware/jwt.go.sh b/middleware/jwt.go.sh
-new file mode 100755
-index 00000000..7f57f83d
---- /dev/null
-+++ ./middleware/jwt.go.sh
-@@ -0,0 +1,6 @@
-+#!/bin/zsh
-+SCRIPT=$(realpath "$0")
-+SCRIPTPATH=$(dirname "$SCRIPT")
-+cd "$SCRIPTPATH"
-+
-+../run.sh
 diff --git a/readme b/readme
 new file mode 100644
 index 00000000..2b22604b
@@ -213,18 +131,3 @@ index 00000000..2b22604b
 +
 +heketi-cli device delete b2df3dcf1ed2bacab647ed4f2e81fae5
 +heketi-cli device delete caa681be5d6b76137c93ac9c29c255f1
-diff --git a/run.sh b/run.sh
-new file mode 100755
-index 00000000..95659a2e
---- /dev/null
-+++ ./run.sh
-@@ -0,0 +1,9 @@
-+#!/bin/zsh
-+SCRIPT=$(realpath "$0")
-+SCRIPTPATH=$(dirname "$SCRIPT")
-+cd "$SCRIPTPATH"
-+
-+./install.sh
-+sleep 0.5s
-+cp -fv ./topology.json /etc/heketi/topology.json
-+heketi-cli topology load --json=/etc/heketi/topology.json
