@@ -1,0 +1,201 @@
+diff --git a/.gitignore b/.gitignore
+index 63325398..3da6edb7 100644
+--- ./.gitignore
++++ ./.gitignore
+@@ -54,3 +54,4 @@ packagecover.out
+ .tox
+ *.log
+ .envrc
++get
+diff --git a/delete_node.sh b/delete_node.sh
+new file mode 100755
+index 00000000..4c0b8feb
+--- /dev/null
++++ ./delete_node.sh
+@@ -0,0 +1,15 @@
++#!/bin/zsh
++SCRIPT=$(realpath "$0")
++SCRIPTPATH=$(dirname "$SCRIPT")
++cd "$SCRIPTPATH"
++
++nodeid="$1"
++heketi-cli node disable "$nodeid"
++heketi-cli node remove "$nodeid"
++
++for deviceid in $(heketi-cli node info "$nodeid" | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g')
++do
++    heketi-cli device delete "$deviceid"
++done
++
++heketi-cli node delete "$nodeid"
+diff --git a/delete_node.test.sh b/delete_node.test.sh
+new file mode 100755
+index 00000000..1b9a3085
+--- /dev/null
++++ ./delete_node.test.sh
+@@ -0,0 +1,6 @@
++#!/bin/zsh
++SCRIPT=$(realpath "$0")
++SCRIPTPATH=$(dirname "$SCRIPT")
++cd "$SCRIPTPATH"
++
++./delete_node.sh 180338fe8e9aba9cae3f5e3bed6d884a
+diff --git a/delete_nodes.sh b/delete_nodes.sh
+new file mode 100755
+index 00000000..b2cb36a9
+--- /dev/null
++++ ./delete_nodes.sh
+@@ -0,0 +1,12 @@
++#!/bin/zsh
++SCRIPT=$(realpath "$0")
++SCRIPTPATH=$(dirname "$SCRIPT")
++cd "$SCRIPTPATH"
++
++for nodeid in $(heketi-cli node list | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g')
++do
++    echo "nodeid --> $nodeid"
++    ./delete_node.sh "$nodeid"
++done
++
++heketi-cli node list
+diff --git a/delete_volumes.sh b/delete_volumes.sh
+new file mode 100755
+index 00000000..08647ccb
+--- /dev/null
++++ ./delete_volumes.sh
+@@ -0,0 +1,11 @@
++#!/bin/zsh
++SCRIPT=$(realpath "$0")
++SCRIPTPATH=$(dirname "$SCRIPT")
++cd "$SCRIPTPATH"
++
++for volumeid in $(heketi-cli volume list | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g')
++do
++    heketi-cli volume delete "$volumeid"
++done
++
++heketi-cli volume list
+diff --git a/etc/heketi.json b/etc/heketi.json
+index de205bee..626343b5 100644
+--- ./etc/heketi.json
++++ ./etc/heketi.json
+@@ -19,13 +19,11 @@
+     "jwt": {
+         "_admin": "Admin has access to all APIs",
+         "admin": {
+-      "_key_comment": "Set the admin key in the next line",
+-      "key": ""
++            "key": "ivd7dfORN7QNeKVO"
+         },
+         "_user": "User only has access to /volumes endpoint",
+         "user": {
+-      "_key_comment": "Set the user key in the next line",
+-      "key": ""
++            "key": "gZPgdZ8NtBNj6jfp"
+         }
+     },
+ 
+@@ -46,47 +44,14 @@
+             "kubernetes: Communicate with GlusterFS containers over",
+             "            Kubernetes exec api."
+         ],
+-    "executor": "mock",
++        "executor": "ssh",
+ 
+         "_sshexec_comment": "SSH username and private key file information",
+         "sshexec": {
+-      "keyfile": "path/to/private_key",
+-      "user": "sshuser",
+-      "port": "Optional: ssh port.  Default is 22",
+-      "fstab": "Optional: Specify fstab file on node.  Default is /etc/fstab",
+-      "mountopts": "Optional: Specify brick mount options.  Default is rw,inode64,noatime,nouuid",
+-      "pv_data_alignment": "Optional: Specify PV data alignment size. Default is 256K",
+-      "vg_physicalextentsize": "Optional: Specify VG physical extent size. Default is 4MB",
+-      "lv_chunksize": "Optional: Specify LV chunksize. Default is 256K",
+-      "xfs_sw": "Optional: Specify number of data disks in the underlying RAID device",
+-      "xfs_su": "Optional: Specifies a stripe unit or RAID chunk size.",
+-      "backup_lvm_metadata": false,
+-      "gluster_cli_timeout": "Optional: Timeout, in seconds, passed to the gluster cli invocations",
+-      "_debug_umount_failures": "Optional: boolean to capture more details in case brick unmounting fails",
+-      "debug_umount_failures": true,
+-      "lvm_wrapper": ""
+-    },
+-
+-    "_kubeexec_comment": "Kubernetes configuration",
+-    "kubeexec": {
+-      "host" :"https://kubernetes.host:8443",
+-      "cert" : "/path/to/crt.file",
+-      "insecure": false,
+-      "user": "kubernetes username",
+-      "password": "password for kubernetes user",
+-      "namespace": "OpenShift project or Kubernetes namespace",
+-      "fstab": "Optional: Specify fstab file on node.  Default is /etc/fstab",
+-      "mountopts": "Optional: Specify brick mount options.  Default is rw,inode64,noatime,nouuid",
+-      "pv_data_alignment": "Optional: Specify PV data alignment size. Default is 256K",
+-      "vg_physicalextentsize": "Optional: Specify VG physical extent size. Default is 4MB",
+-      "lv_chunksize": "Optional: Specify LV chunksize. Default is 256K",
+-      "xfs_sw": "Optional: Specify number of data disks in the underlying RAID device.",
+-      "xfs_su": "Optional: Specifies a stripe unit or RAID chunk size.",
+-      "backup_lvm_metadata": false,
+-      "gluster_cli_timeout": "Optional: Timeout, in seconds, passed to the gluster cli invocations",
+-      "_debug_umount_failures": "Optional: boolean to capture more details in case brick unmounting fails",
+-      "debug_umount_failures": true,
+-      "lvm_wrapper": ""
++            "keyfile": "/etc/heketi/heketi_key",
++            "user": "root",
++            "port": "22",
++            "fstab": "/etc/fstab"
+         },
+ 
+         "_db_comment": "Database file name",
+diff --git a/extras/systemd/heketi.service b/extras/systemd/heketi.service
+index 7b0b2d2d..c6b06dcc 100644
+--- ./extras/systemd/heketi.service
++++ ./extras/systemd/heketi.service
+@@ -6,7 +6,7 @@ Type=simple
+ WorkingDirectory=/var/lib/heketi
+ EnvironmentFile=-/etc/heketi/heketi.env
+ User=heketi
+-ExecStart=/usr/bin/heketi --config=/etc/heketi/heketi.json
++ExecStart=/usr/local/bin/heketi --disable-auth --config=/etc/heketi/heketi.json
+ Restart=on-failure
+ StandardOutput=syslog
+ StandardError=syslog
+diff --git a/readme b/readme
+new file mode 100644
+index 00000000..2b22604b
+--- /dev/null
++++ ./readme
+@@ -0,0 +1,32 @@
++➜  ~ heketi-cli volume create --size=1
++Error: volume create: vol_2175f6023fbc3f5191745b9eb6ff471f: failed: Host 192.168.31.153 is not in 'Peer in Cluster' state
++
++➜  heketi git:(release/10.fix) ✗ heketi-cli node info f6bcfe95fa38e6d5867416350edbd2d3
++Node Id: f6bcfe95fa38e6d5867416350edbd2d3
++State: online
++Cluster Id: 4ff7605449a1095864647e37564176ff
++Zone: 1
++Management Hostname: gluster00
++Storage Hostname: 192.168.31.153
++Devices:
++Id:074fc9888ca5e30f4f38fa53cf816750   Name:/dev/vdb            State:online    Size (GiB):19      Used (GiB):0       Free (GiB):19      Bricks:0
++
++Id:509b66bccbbf25ed87c493faa364b348   Name:/dev/vdc            State:online    Size (GiB):19      Used (GiB):0       Free (GiB):19      Bricks:0
++
++Id:b443ae03dd11a7143b7c6612a545b163   Name:/dev/vdd            State:online    Size (GiB):19      Used (GiB):0       Free (GiB):19      Bricks:0
++
++heketi-cli node info f6bcfe95fa38e6d5867416350edbd2d3
++heketi-cli node disable f6bcfe95fa38e6d5867416350edbd2d3
++heketi-cli node remove f6bcfe95fa38e6d5867416350edbd2d3
++
++➜  heketi git:(release/10.fix) ✗ heketi-cli node info 180338fe8e9aba9cae3f5e3bed6d884a | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g'
++delete_node.sh
++➜  heketi git:(release/10.fix) ✗ heketi-cli node info 180338fe8e9aba9cae3f5e3bed6d884a
++heketi-cli node disable 180338fe8e9aba9cae3f5e3bed6d884a
++heketi-cli node remove 180338fe8e9aba9cae3f5e3bed6d884a
++
++Id:b2df3dcf1ed2bacab647ed4f2e81fae5   Name:/dev/vdc            State:online    Size (GiB):19      Used (GiB):1       Free (GiB):18      Bricks:1
++Id:caa681be5d6b76137c93ac9c29c255f1   Name:/dev/vda            State:online    Size (GiB):19      Used (GiB):0       Free (GiB):19      Bricks:0
++
++heketi-cli device delete b2df3dcf1ed2bacab647ed4f2e81fae5
++heketi-cli device delete caa681be5d6b76137c93ac9c29c255f1
