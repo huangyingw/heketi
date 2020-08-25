@@ -1,0 +1,32 @@
+➜  ~ heketi-cli volume create --size=1
+Error: volume create: vol_2175f6023fbc3f5191745b9eb6ff471f: failed: Host 192.168.31.153 is not in 'Peer in Cluster' state
+
+➜  heketi git:(release/10.fix) ✗ heketi-cli node info f6bcfe95fa38e6d5867416350edbd2d3
+Node Id: f6bcfe95fa38e6d5867416350edbd2d3
+State: online
+Cluster Id: 4ff7605449a1095864647e37564176ff
+Zone: 1
+Management Hostname: gluster00
+Storage Hostname: 192.168.31.153
+Devices:
+Id:074fc9888ca5e30f4f38fa53cf816750   Name:/dev/vdb            State:online    Size (GiB):19      Used (GiB):0       Free (GiB):19      Bricks:0
+
+Id:509b66bccbbf25ed87c493faa364b348   Name:/dev/vdc            State:online    Size (GiB):19      Used (GiB):0       Free (GiB):19      Bricks:0
+
+Id:b443ae03dd11a7143b7c6612a545b163   Name:/dev/vdd            State:online    Size (GiB):19      Used (GiB):0       Free (GiB):19      Bricks:0
+
+heketi-cli node info f6bcfe95fa38e6d5867416350edbd2d3
+heketi-cli node disable f6bcfe95fa38e6d5867416350edbd2d3
+heketi-cli node remove f6bcfe95fa38e6d5867416350edbd2d3
+
+➜  heketi git:(release/10.fix) ✗ heketi-cli node info 180338fe8e9aba9cae3f5e3bed6d884a | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g'
+delete_node.sh
+➜  heketi git:(release/10.fix) ✗ heketi-cli node info 180338fe8e9aba9cae3f5e3bed6d884a
+heketi-cli node disable 180338fe8e9aba9cae3f5e3bed6d884a
+heketi-cli node remove 180338fe8e9aba9cae3f5e3bed6d884a
+
+Id:b2df3dcf1ed2bacab647ed4f2e81fae5   Name:/dev/vdc            State:online    Size (GiB):19      Used (GiB):1       Free (GiB):18      Bricks:1
+Id:caa681be5d6b76137c93ac9c29c255f1   Name:/dev/vda            State:online    Size (GiB):19      Used (GiB):0       Free (GiB):19      Bricks:0
+
+heketi-cli device delete b2df3dcf1ed2bacab647ed4f2e81fae5
+heketi-cli device delete caa681be5d6b76137c93ac9c29c255f1
