@@ -42,14 +42,16 @@ index 00000000..1b9a3085
 +./delete_node.sh 180338fe8e9aba9cae3f5e3bed6d884a
 diff --git a/delete_nodes.sh b/delete_nodes.sh
 new file mode 100755
-index 00000000..b2cb36a9
+index 00000000..d1219381
 --- /dev/null
 +++ ./delete_nodes.sh
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,14 @@
 +#!/bin/zsh
 +SCRIPT=$(realpath "$0")
 +SCRIPTPATH=$(dirname "$SCRIPT")
 +cd "$SCRIPTPATH"
++
++./delete_volumes.sh
 +
 +for nodeid in $(heketi-cli node list | sed -n '/^Id:[a-f0-9]\+/p' | sed 's/Id:\([0-9a-f]\+\).*/\1/g')
 +do
