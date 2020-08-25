@@ -13,6 +13,5 @@
     remote = origin
     merge = refs/heads/dev
 [gdif]
-    ignore = install.sh
-    ignore = setup.sh
+    ignore = *.sh
     ignore = topology.json
