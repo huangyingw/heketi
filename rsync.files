@@ -166,7 +166,7 @@
 ./delete_node.sh
 ./delete_node.test.sh
 ./delete_nodes.sh
-./delete_volume.sh
+./delete_volumes.sh
 ./docs/README.md
 ./docs/admin/arbiter.md
 ./docs/admin/install-kubernetes.md
